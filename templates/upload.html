@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/static/css/landing.css" />
+    <script src="/static/js/script.js" defer></script>
+
+
+
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.1/xlsx.full.min.js"
+      defer
+    ></script>
+
+    <script
+      src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"
+      defer
+    ></script>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css"
+    />
+
+    <title>Upload Excel</title>
+  </head>
+  <body>
+    <header class="expanded">
+      <nav class="header__navegation">
+        <img
+          src="https://static.wixstatic.com/media/85b92c_f21a10fac4d9497397a19f8aade0ec99~mv2.png/v1/fill/w_346,h_95,al_c,q_85,usm_0.66_1.00_0.01,enc_auto/PCE_White%20registered1.png"
+          alt="logo"
+          srcset=""
+        />
+        <ul id="navbarUl">
+          <li><a href="/home">Home</a></li>
+          <li><a href="/upload">Upload Model</a></li>
+          <li><a href="#">Sign Out</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <div class="content">
+      <div id="fileUploadContainer">
+        <h2>Upload Excel File</h2>
+        <div
+          id="dropArea"
+          class="drop-area"
+          ondragover="handleDragOver(event)"
+          ondrop="handleDrop(event)"
+        >
+          <label for="fileInput">
+            <img
+              src="https://cdn.iconscout.com/icon/premium/png-512-thumb/file-upload-8-1110111.png?f=webp&w=256"
+              alt="upload-icon"
+            />
+            <p>Drag & Drop files here or click to select</p>
+          </label>
+          <input
+            type="file"
+            id="fileInput"
+            class="file-input"
+            onchange="handleFileSelection()"
+          />
+        </div>
+
+        <!-- Add this button inside #fileUploadContainer -->
+        <button id="resetButton" class="btn" style="display: none">
+          Reset
+        </button>
+
+        <!-- <button class="btn" onclick="downloadFile()">Download Modified Excel</button> -->
+        <button id="model" button class="btn" onclick="uploadFile()">
+          Upload and select Model
+        </button>
+      </div>
+
+      <div id="handsontableContainer" ></div>
+      
+    </div>
+  </body>
+</html>

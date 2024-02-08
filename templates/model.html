@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/static/css/landing.css" />
+  <script src="/static/js/script.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.1/xlsx.full.min.js" defer></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css" />
+  <title>PCE AI</title>
+</head>
+
+<body>
+  <header class="expanded">
+    <nav class="header__navegation">
+      <img
+        src="https://static.wixstatic.com/media/85b92c_f21a10fac4d9497397a19f8aade0ec99~mv2.png/v1/fill/w_346,h_95,al_c,q_85,usm_0.66_1.00_0.01,enc_auto/PCE_White%20registered1.png"
+        alt="logo" srcset="" />
+      <ul id="navbarUl">
+        <li><a href="/home">Home</a></li>
+        <li><a href="#">Upload Model</a></li>
+        <li><a href="#">Sign Out</a></li>
+      </ul>
+    </nav>
+  </header>
+  <div class="container" style="display: flex">
+    <div id="loading">
+      <!-- Place your loading GIF here -->
+      <img src="/static/images/Loading.gif" alt="Loading...">
+  </div>
+    <div class="column1">
+      <!-- Content for the first column goes here -->
+
+      <h2>Upload Excel File</h2>
+
+      <label for="fileInput">
+        <div id="dropArea" type="file" class="drop-area" ondragover="handleDragOver(event)" ondrop="handleDrop(event)">
+          <img src="https://cdn.iconscout.com/icon/premium/png-512-thumb/file-upload-8-1110111.png?f=webp&w=256"
+            alt="upload-icon" />
+          <p style="height: 20vh;">Drag & Drop files here or click to select</p>
+      </label>
+      <input type="file" id="fileInput" class="file-input" onchange="handleFileSelection()" />
+    </div>
+
+    <!-- Add this button inside #fileUploadContainer -->
+    <button id="resetButton" class="btn" style="display: none">
+      Reset
+    </button>
+
+    <!-- <button class="btn" onclick="downloadFile()">Download Modified Excel</button> -->
+    <button id="model" button class="btn" style="width: 100%" onclick="uploadFile()">
+      Upload 
+    </button>
+  </div>
+
+  <div class="column2" disabled>
+    <h2>Select AI Model</h2>
+    <div class="models">
+      <div class="ai-button" onclick="selectAI('GPT')" data-id="gpt" data-model="Chat GPT 4"
+    data-developer="OpenAI Global" data-year="2022" data-accuracy="High">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/ChatGPT_logo.svg/1024px-ChatGPT_logo.svg.png"
+        alt="ChatGPT Logo" />
+    <p>Chat GPT 4</p>
+</div>
+
+<div class="ai-button" onclick="selectAI('NLP')" data-id="nlp" data-model="NLP Model" data-developer="PharmacoEvidence"
+    data-year="2023" data-accuracy="Medium but requires trainings">
+    <img src="https://sambanova.ai/wp-content/uploads/2021/09/16%E2%80%94Breakthrough-Efficiency.jpg"
+        alt="NLP Logo" />
+    <p>NLP Model</p>
+</div>
+
+<div class="ai-button" onclick="selectAI('Claude')" data-id="aws" data-model="Claude (Bedrock Edition)"
+    data-developer="Amazon.com, Inc." data-year="2021" data-accuracy="Average">
+    <img src="https://s3.ap-south-1.amazonaws.com/assets.article-factory.ai/amazon-bedrock.png" alt="Claude Logo" />
+    <p>Claude</p>
+</div>
+
+<div class="ai-button" onclick="selectAI('GoogleGemini')" data-id="google" data-model="Google Gemini" data-developer="Google LLC "
+    data-year="2020" data-accuracy="Average">
+    <img src="https://assets-global.website-files.com/614c82ed388d53640613982e/65731925337413d7614c64bd_google-gemini.webp"
+        alt="Google Gemini Logo" />
+    <p>Google Gemini</p>
+</div>
+
+
+
+    </div>
+    <div class="ai-info">
+      <p>Model: <span id="model-name-info"></span></p>
+    </br>
+      <p>Developer: <span id="developer-info"></span></p>
+    </br>
+      <p>Year: <span id="year-info"></span></p>
+    </br>
+      <p>Accuracy: <span id="accuracy-info"></span></p>
+    </br>
+    </div>
+    <button id="Analyse" class="btn" style="margin-top:5vh ;width: 100%;" onclick="analyseModel()" disabled>Analyse</button>
+  </div>
+  
+  </div>
+
+  
+</body>
+
+</html>
