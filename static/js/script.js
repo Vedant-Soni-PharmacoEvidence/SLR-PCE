@@ -130,9 +130,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.error('Error:', error);
                 document.getElementById("loading").style.display = "none";
             })
-            .finally(() => {
-                hideLoadingOverlay(); // Hide loading overlay regardless of success or error
-            });
+            
     }
     
 
@@ -195,54 +193,22 @@ async function uploadFile() {
 
 
 
+document.addEventListener("DOMContentLoaded", async function () {
+    try {
+        const response = await fetch("/get_publication_types_chart");
+        const data = await response.json();
 
-
-
-
-
-
-
-function renderHandsontable() {
-    const handsontableContainer = document.getElementById('handsontableContainer');
-    handsontableContainer.innerHTML = ''; // Clear previous content
-    handsontableContainer.style.display = 'block';
-
-    // Create a Handsontable instance
-    hot = new Handsontable(handsontableContainer, {
-        data: excelData.rows,
-        rowHeaders: true,
-        colHeaders: excelData.headers,
-        contextMenu: true,
-        manualColumnResize: true,
-        manualRowResize: true,
-        licenseKey: 'non-commercial-and-evaluation',
-        fillHandle: true,
-        afterChange: function (changes, source) {
-            // Triggered after the data has changed
-            if (source === 'edit' || source === 'autofill') {
-                // You can handle changes here
-            }
-        },
-    });
-}
-
-function downloadFile() {
-    // Get the modified data from Handsontable
-    const modifiedExcelData = {
-        headers: hot.getColHeader(),
-        rows: hot.getData(),
-    };
-
-    // Create a worksheet
-    const ws = XLSX.utils.aoa_to_sheet([modifiedExcelData.headers, ...modifiedExcelData.rows]);
-
-    // Create a workbook
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
-
-    // Save the workbook to a file
-    XLSX.writeFile(wb, 'modified_excel.xlsx');
-}
+        if (data.success) {
+            // Display the HTML plot
+            const plotContainer = document.getElementById("publicationTypesChartContainer");
+            plotContainer.innerHTML = data.plot_data;
+        } else {
+            console.error("Error fetching publication types chart data:", data.error);
+        }
+    } catch (error) {
+        console.error("Error processing publication types chart data:", error);
+    }
+});
 
 
 

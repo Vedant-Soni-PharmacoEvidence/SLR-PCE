@@ -1,5 +1,5 @@
-from fastapi import FastAPI, Request, Form,UploadFile, File
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi import FastAPI, Request, Form,UploadFile, File,Depends, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pathlib import Path
 import os
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +19,8 @@ import numpy as np
 from app.businesslogic import analytics as an
 from typing import List
 import openai
+import matplotlib.pyplot as plt
+import mpld3
 
 
 # excel_file_path = 'app/data/PSM.xlsx'
@@ -124,6 +126,7 @@ async def analyse_gpt():
     # return {"message": "Analyzing GPT model"}
     global uploaded_file_path
     
+    
     try:
             # Read Excel file into a Pandas DataFrame
         data = pd.read_excel(uploaded_file_path)
@@ -194,9 +197,19 @@ async def analyse_gpt():
             'Title': titles,
             'Classification': classifications
         })
+        data['ai_decision'] = classifications
+        global result_file_path
 
-        result_df.to_excel("GPT4_results.xlsx", index=False)
-        return JSONResponse(content={"success": True})
+        result_file_path = "GPT4_results_with_decision.xlsx"
+        data.to_excel(result_file_path, index=False)
+        
+
+        # Return JSON response with success and file path
+        response_content = {"success": True, "result_file_path": result_file_path}
+
+        # Redirect to /dashboard upon successful file saving
+        return JSONResponse(content=response_content), RedirectResponse(url="/dashboard")
+    
     except Exception as e:
         return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
 
@@ -222,23 +235,113 @@ class GPTRequest(BaseModel):
 ################################################################################    GPT END   ####################################################################################################
 
 
+@app.get("/dashboard", response_class=HTMLResponse)
+
+def home(request: Request):
+    return templates.TemplateResponse("dashboard.html", {"request": request})
+
+
+# @app.get("/get_excel_data")
+# async def get_excel_data():
+#     file_path = 'app/data/GPT4_results_with_decision.xlsx'
+#     global result_file_path
+#     try:
+#         data = pd.read_excel(file_path)  # Set header=0 to use the first row as column names
+#         columns = [{"title": col} for col in data.columns]
+#         data_dict = {"data": data.to_dict(orient="records"), "columns": columns}
+#         return JSONResponse(content={"success": True, "data": data_dict})
+#     except Exception as e:
+#         return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
 
 
 
 
 
 
+@app.get("/get_dashboard_data")
+async def get_dashboard_data():
+    global data
+    try:
+        file_path = 'app/data/GPT4_results_with_decision.xlsx'
+        data = pd.read_excel(file_path)
+
+        # Count include and exclude for Human Decision
+        ai_include_count = data['ai_decision'].eq('Include').sum()
+        print(ai_include_count)
+        ai_exclude_count = data['ai_decision'].eq('Exclude').sum()
+
+        # Calculate accuracy percentage
+        total_rows = len(data)
+        accuracy_percentage = (ai_include_count + ai_exclude_count) / total_rows * 100
+
+        # Plotting
+        plt.figure(figsize=(8, 6))
+        plt.bar(['Include', 'Exclude'], [ai_include_count, ai_exclude_count], color=['green', 'red'])
+        plt.title('Human Decision Counts')
+        plt.xlabel('Decision')
+        plt.ylabel('Count')
+
+        plot_data = json.dumps({
+            "data": [
+                {"x": ['Include', 'Exclude'], "y": [ai_include_count, ai_exclude_count], "type": "bar", "marker": {"color": ['green', 'red']}},
+            ],
+            "layout": {"title": "Human Decision Counts", "xaxis": {"title": "Decision"}, "yaxis": {"title": "Count"}}
+        })
+
+        # Prepare data to send to frontend
+        dashboard_data = {
+            "human_decision_include_count": ai_include_count,
+            "human_decision_exclude_count": ai_exclude_count,
+            "ai_decision_include_count": ai_include_count,
+            "ai_decision_exclude_count": ai_exclude_count,
+            "accuracy_percentage": accuracy_percentage,
+            "plot_data": plot_data  # Include the JSON plot data
+        }
+
+        return JSONResponse(content=dashboard_data)
+    except Exception as e:
+        return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
 
 
 
 
 
+def generate_publication_types_pie_chart(data):
+    """Generate pie chart data for types of publications."""
+    if data is not None and not data.empty:
+        publication_types = data['type_of_publication'].value_counts().reset_index()
+        publication_types.columns = ['category', 'count']
 
+        if not publication_types.empty:
+            # Plotting
+            plt.figure(figsize=(8, 6))
+            plt.pie(publication_types['count'], labels=publication_types['category'], autopct='%1.1f%%', startangle=90)
+            plt.title('Types of Publications')
 
+            # Convert the plot to HTML
+            plot_html = mpld3.fig_to_html(plt.gcf())
+            plt.close()
 
+            return {"plot_data": plot_html, "success": True}
+        else:
+            return {"success": False, "error": "No publication types available."}
+    else:
+        return {"success": False, "error": "No data available."}
 
+@app.get("/get_publication_types_chart")
+async def get_publication_types_chart():
+    try:
+        # Assuming you have your DataFrame loaded
+        # Example data loading: df = pd.read_excel('your_data.xlsx')
+        chart_data = generate_publication_types_pie_chart(data)
 
+        if chart_data["success"]:
+            return JSONResponse(content=chart_data)
+        else:
+            return JSONResponse(content={"success": False, "error": chart_data["error"]}, status_code=404)
 
+    except Exception as e:
+        return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
 
 
 
