@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Form,UploadFile, File,Depends, HTTPException
+from fastapi import FastAPI, Request, Form,UploadFile, File,Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pathlib import Path
 import os
@@ -21,6 +21,8 @@ from typing import List
 import openai
 import matplotlib.pyplot as plt
 import mpld3
+import plotly.express as px
+from typing import Optional
 
 
 # excel_file_path = 'app/data/PSM.xlsx'
@@ -235,10 +237,9 @@ class GPTRequest(BaseModel):
 ################################################################################    GPT END   ####################################################################################################
 
 
-@app.get("/dashboard", response_class=HTMLResponse)
-
-def home(request: Request):
-    return templates.TemplateResponse("dashboard.html", {"request": request})
+@app.get("/dashboard")
+async def read_dashboard(request: Request):
+    return templates.TemplateResponse("dashboard.html", {"request": request, "is_dashboard": True})
 
 
 # @app.get("/get_excel_data")
@@ -254,92 +255,47 @@ def home(request: Request):
 #         return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
 
 
+file_path = 'app/data/Test.xlsx'
+data = pd.read_excel(file_path)
 
 
 
-
-@app.get("/get_dashboard_data")
-async def get_dashboard_data():
-    global data
+@app.get("/get_publications_by_year_and_type")
+async def get_publications_by_year_and_type(selected_years: Optional[str] = None, selected_types: Optional[str] = None):
     try:
-        file_path = 'app/data/GPT4_results_with_decision.xlsx'
-        data = pd.read_excel(file_path)
+        # Fetch the latest data
+        df = pd.DataFrame(data)
 
-        # Count include and exclude for Human Decision
-        ai_include_count = data['ai_decision'].eq('Include').sum()
-        print(ai_include_count)
-        ai_exclude_count = data['ai_decision'].eq('Exclude').sum()
+        # Convert numeric columns to standard Python types
+        df['Publication Year'] = df['Publication Year'].astype(int)
 
-        # Calculate accuracy percentage
-        total_rows = len(data)
-        accuracy_percentage = (ai_include_count + ai_exclude_count) / total_rows * 100
+        # Filter data based on selected years and types
+        if selected_years:
+            selected_years_list = selected_years.split(',')
+            df = df[df['Publication Year'].astype(str).isin(selected_years_list)]
 
-        # Plotting
-        plt.figure(figsize=(8, 6))
-        plt.bar(['Include', 'Exclude'], [ai_include_count, ai_exclude_count], color=['green', 'red'])
-        plt.title('Human Decision Counts')
-        plt.xlabel('Decision')
-        plt.ylabel('Count')
+        if selected_types:
+            selected_types_list = selected_types.split(',')
+            df = df[df['Publication Type'].astype(str).isin(selected_types_list)]
+        if selected_years and selected_types:
+            df = df[df['Publication Year'].astype(str).isin(selected_years_list) & df['Publication Type'].astype(str).isin(selected_types_list)]
+        # Drop NaN values from the DataFrame
+        df = df.dropna()
 
-        plot_data = json.dumps({
-            "data": [
-                {"x": ['Include', 'Exclude'], "y": [ai_include_count, ai_exclude_count], "type": "bar", "marker": {"color": ['green', 'red']}},
-            ],
-            "layout": {"title": "Human Decision Counts", "xaxis": {"title": "Decision"}, "yaxis": {"title": "Count"}}
+        # Group data by year and count publications
+        publications_by_year = df.groupby('Publication Year').size().reset_index(name='Count')
+
+        # Convert 'Publication Year' to string before returning the data
+        publications_by_year['Publication Year'] = publications_by_year['Publication Year'].astype(str)
+
+        # Group data by type and count publications
+        publications_by_type = df.groupby('Publication Type').size().reset_index(name='Count')
+
+        return JSONResponse(content={
+            "publications_by_year": publications_by_year.to_dict(orient='records'),
+            "publications_by_type": publications_by_type.to_dict(orient='records')
         })
 
-        # Prepare data to send to frontend
-        dashboard_data = {
-            "human_decision_include_count": ai_include_count,
-            "human_decision_exclude_count": ai_exclude_count,
-            "ai_decision_include_count": ai_include_count,
-            "ai_decision_exclude_count": ai_exclude_count,
-            "accuracy_percentage": accuracy_percentage,
-            "plot_data": plot_data  # Include the JSON plot data
-        }
-
-        return JSONResponse(content=dashboard_data)
-    except Exception as e:
-        return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
-
-
-
-
-
-def generate_publication_types_pie_chart(data):
-    """Generate pie chart data for types of publications."""
-    if data is not None and not data.empty:
-        publication_types = data['type_of_publication'].value_counts().reset_index()
-        publication_types.columns = ['category', 'count']
-
-        if not publication_types.empty:
-            # Plotting
-            plt.figure(figsize=(8, 6))
-            plt.pie(publication_types['count'], labels=publication_types['category'], autopct='%1.1f%%', startangle=90)
-            plt.title('Types of Publications')
-
-            # Convert the plot to HTML
-            plot_html = mpld3.fig_to_html(plt.gcf())
-            plt.close()
-
-            return {"plot_data": plot_html, "success": True}
-        else:
-            return {"success": False, "error": "No publication types available."}
-    else:
-        return {"success": False, "error": "No data available."}
-
-@app.get("/get_publication_types_chart")
-async def get_publication_types_chart():
-    try:
-        # Assuming you have your DataFrame loaded
-        # Example data loading: df = pd.read_excel('your_data.xlsx')
-        chart_data = generate_publication_types_pie_chart(data)
-
-        if chart_data["success"]:
-            return JSONResponse(content=chart_data)
-        else:
-            return JSONResponse(content={"success": False, "error": chart_data["error"]}, status_code=404)
-
     except Exception as e:
         return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
 
@@ -359,159 +315,3 @@ async def get_publication_types_chart():
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-@app.get("/dashboard",response_class=HTMLResponse)
-def dashboard(request: Request):
-    try:
-        global table_metadata
-        global df
-        global firstkey
-        firstkey = next(iter(table_metadata))
-        an_obj = an.analyticsClass()
-        df = an_obj.create_qa_dataframe(firstkey, table_metadata, excel_file_path, output_file_path)
-        print("GLOBAL DATAFRAME REFRESHED")
-        table_list = list(table_metadata.keys())
-        return templates.TemplateResponse("dashboard.html", {"request": request, "table_list" : table_list, "table_metadata":table_metadata})
-    except Exception as e:
-        return {"ERROR":"SOMETHING WENT WRONG"}
-    
-@app.get("/updateexcel",response_class=HTMLResponse)
-def updateExcel(request: Request):
-    try:
-        return templates.TemplateResponse("updateexcel.html", {"request": request})
-    except Exception as e:
-        return {"ERROR":"SOMETHING WENT WRONG"}
-    
-@app.get("/update-metadata")
-def update_metadata(table: str):
-    try:
-        global df
-        an_obj = an.analyticsClass()
-        df = an_obj.create_qa_dataframe(table, table_metadata, excel_file_path, output_file_path)
-        print("DATAFRAME UPDATED")
-        print(df)
-        metadata = table_metadata.get(table, {})
-        return JSONResponse(content=metadata)
-    except Exception as e:
-        return JSONResponse(content={"ERROR": "SOMETHING WENT WRONG"}, status_code=500)
-    
-class RequestData(BaseModel):
-    prompt_input: str 
-
-@app.post("/generate")
-def generate(o: RequestData):
-    try:
-        an_obj= an.analyticsClass()
-        result= an_obj.genAIQA(df, o.prompt_input)
-        return JSONResponse(content={"generated_output": result}) 
-    except Exception as e:
-        error=str(e)  
-        return JSONResponse(content={"generated_output": "Issue occured in API."+ error})
-    
-
-
-@app.post("/updateexcelexecute")
-def updateExcelExecute(o: RequestData):
-    try:
-        bedrock = boto3.client(service_name='bedrock-runtime', region_name='us-west-2')
-        global excel_file_path
-        input_text = o.prompt_input
-        sheet_name = 'General'
-
-        # Read the Excel file and create a DataFrame
-        df = pd.read_excel(excel_file_path, sheet_name=sheet_name)
-        column_names = df.columns.tolist()
-        input_text=o.prompt_input
-
-        words =  input_text.split()
-        if len(input_text) == 0 or input_text.replace(" ", "").isdigit() or all(
-                word.isdigit() or any(not char.isalpha() for char in word) for word in words):
-            return {"error":'Please enter a valid input'}
-
-        else:
-            print(df)
-            prompt = """Human: Please regard the following data for updation:\n {}. Please provide Python code to Human Input "{}". 
-            There are only two attributes Key and Value (Integer Only). Print the data as per the requirement. Avoid including introductory lines or explanations in the python code and exclude user-specific comments or instructions such as paths or notes for replacement.
-            Before Generating python code please cross verify all the code if any syntax errors please resolve before sending repsonse. 
-            Python code always should be a single string with proper line breakers and comments its can't be a bullet points and it will start with import only,
-            After importing the libraries please keep the code:
-            pd.set_option('display.max_rows', None)  # Set the maximum number of rows to None for unlimited rows
-            pd.set_option('display.max_columns', None)  # Set the maximum number of columns to None for unlimited columns
-            In case any extra text came with python code please put those in a comment.
-            This string can be really long please give in single string only, and dataframe variable always its a df only.
-            "please don't support Garbage text, Single word, and Meaningless sentences", and just print('Please enter valid Text').
-            Do not initialize df as it is already initialized.
-            Make sure to take exact Key names and value from the Human Input for update.
-            Use try catch except block, on successful try print about what updation is made and on exception print error message. Do not print any other thing in code except these. 
-            Assistant:
-            """.format(df.columns, input_text)
-            if column_names != []:
-                body = json.dumps({
-                    "prompt": prompt, 
-                    "max_tokens_to_sample": 2048,
-                    "temperature": 0.5,
-                    "top_k": 250,
-                    "top_p": 0.5,
-                    })
-                modelId = 'anthropic.claude-v2'  
-                accept = 'application/json'
-                contentType = 'application/json'
-                response = bedrock.invoke_model(body=body, modelId=modelId, accept=accept, contentType=contentType)
-                response_body = json.loads(response.get('body').read())
-                result = response_body.get('completion')
-                print(result)
-                if 'python' in result.lower() or 'import' in result:
-                    try:
-                        code_start = result.find("```python")
-                        code_end = result.find("```", code_start + len("```python"))
-                        python_code = result[code_start + len("```python") : code_end]
-
-                        # Execute the Python code and capture the output
-                        old_stdout = sys.stdout
-                        new_stdout = io.StringIO()
-                        sys.stdout = new_stdout
-                        exec(python_code) 
-                        code_output = new_stdout.getvalue()
-                        sys.stdout = old_stdout  
-                        result=code_output
-                        print(code_output)
-                        
-                    except Exception as e:
-                        result = 'Something went wrong while doing updation, please enter your input again'
-        print("HELLO")
-        for process in psutil.process_iter(['pid', 'name']):
-            if 'excel.exe' in process.info['name'].lower():
-                print(f"Closing Excel process with PID {process.info['pid']}")
-                psutil.Process(process.info['pid']).terminate()
-                print("Excel process closed successfully.")
-        print("HELLO")
-        with pd.ExcelWriter(excel_file_path, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
-            print("HELLO")
-            writer.book[sheet_name].index = None
-            writer.book[sheet_name].sheet_view.viewTabSelected = 'false'
-            df.to_excel(writer, sheet_name=sheet_name, index=False)
-            print("HELLO")
-        return JSONResponse(content={"generated_output": result}) 
-    except Exception as e:
-        error=str(e)  
-        return JSONResponse(content={"generated_output": "Issue occured in API."+ error})
-      
-
-
-
-    

@@ -186,30 +186,171 @@ async function uploadFile() {
 
 
 
+// dashboard.js
 
+document.addEventListener("DOMContentLoaded", function () {
+    // Fetch data for the bar graph from FastAPI backend
+    fetch('/get_publications_by_year_and_type')
+        .then(response => response.json())
+        .then(data => {
+            // Prepare data for the bar graph
+            const barGraphData = prepareBarGraphData(data.publications_by_year);
 
+            // Create Plotly bar graph
+            Plotly.newPlot('plotlyGraphContainer', barGraphData, {});
 
+            // Create checkboxes for years
+            createYearCheckboxes(data.publications_by_year.map(entry => entry['Publication Year']));
+        })
+        .catch(error => {
+            console.error('Error fetching bar graph data:', error);
+        });
 
+    // Fetch data for the pie chart from FastAPI backend
+    fetch('/get_publications_by_year_and_type?type=true')
+        .then(response => response.json())
+        .then(data => {
+            // Create checkboxes for types
+            createTypeCheckboxes(data.publications_by_type);
 
-
-
-document.addEventListener("DOMContentLoaded", async function () {
-    try {
-        const response = await fetch("/get_publication_types_chart");
-        const data = await response.json();
-
-        if (data.success) {
-            // Display the HTML plot
-            const plotContainer = document.getElementById("publicationTypesChartContainer");
-            plotContainer.innerHTML = data.plot_data;
-        } else {
-            console.error("Error fetching publication types chart data:", data.error);
-        }
-    } catch (error) {
-        console.error("Error processing publication types chart data:", error);
-    }
+            // Initialize the pie chart with all available types
+            updatePieChart();
+        })
+        .catch(error => {
+            console.error('Error fetching pie chart data:', error);
+        });
 });
 
+function prepareBarGraphData(data) {
+    // Create an array of unique colors for each year
+    const uniqueColors = Array.from({ length: data.length }, (_, index) => `rgb(${index * 30}, ${index * 20 + 50}, ${index * 10 + 100})`);
 
 
 
+    
+    // Convert data to Plotly format for bar graph
+    const barGraphData = data.map((entry, index) => ({
+        x: [entry['Publication Year']],
+        y: [entry['Count']],
+        type: 'bar',
+        name: entry['Publication Year'].toString(),
+        
+        hoverinfo: 'y+name',
+    }));
+
+    // Layout settings to customize axis labels and legend
+    const layout = {
+        xaxis: {
+            title: 'Publication Year',  // X-axis label
+        },
+        yaxis: {
+            title: 'Publication Count',  // Y-axis label
+        },
+        legend: {
+            traceorder: 'reversed',  // Reverse the order of legend items
+        },
+    };
+
+    return { data: barGraphData, layout: layout };
+}
+
+
+function createYearCheckboxes(years) {
+    const checkboxesContainer = document.getElementById('yearCheckboxes');
+
+    years.forEach(year => {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `year${year}`;
+        checkbox.checked = true;  // Initially, all checkboxes are checked
+        checkbox.addEventListener('change', updateGraph);
+
+        const label = document.createElement('label');
+        label.htmlFor = `year${year}`;
+        label.textContent = year;
+
+        checkboxesContainer.appendChild(checkbox);
+        checkboxesContainer.appendChild(label);
+    });
+}
+
+function createTypeCheckboxes(types) {
+    const checkboxContainer = document.getElementById('typeCheckboxes');
+
+    types.forEach(type => {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `type${type['Publication Type']}`;
+        checkbox.className = 'type-checkbox';
+        checkbox.checked = true;  // Initially, all checkboxes are checked
+        checkbox.addEventListener('change', updatePieChart);
+
+        const label = document.createElement('label');
+        label.htmlFor = `type${type['Publication Type']}`;
+        label.textContent = type['Publication Type'];
+
+        checkboxContainer.appendChild(checkbox);
+        checkboxContainer.appendChild(label);
+    });
+}
+
+function updateGraph() {
+    // Get selected years
+    const selectedYears = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
+        .map(checkbox => checkbox.id.replace('year', ''));
+
+    // Fetch data for the bar graph based on selected years from FastAPI backend
+    fetch(`/get_publications_by_year_and_type?selected_years=${selectedYears.join(',')}`)
+        .then(response => response.json())
+        .then(data => {
+            // Prepare data for the bar graph
+            const barGraphData = prepareBarGraphData(data.publications_by_year);
+
+            // Clear existing graph
+            Plotly.purge('plotlyGraphContainer');
+
+            // Initialize new bar graph with the updated data
+            Plotly.newPlot('plotlyGraphContainer', barGraphData, {});
+        })
+        .catch(error => {
+            console.error('Error fetching bar graph data:', error);
+        });
+}
+
+function updatePieChart() {
+    // Get selected types
+    const selectedTypes = Array.from(document.querySelectorAll('.type-checkbox:checked'))
+        .map(checkbox => checkbox.nextSibling.textContent);
+
+    // Fetch data for the pie chart based on selected types from FastAPI backend
+    fetch(`/get_publications_by_year_and_type?selected_types=${selectedTypes.join(',')}&type=true`)
+        .then(response => response.json())
+        .then(data => {
+            // Prepare data for Plotly pie chart
+            const pieData = preparePlotlyData(data.publications_by_type);
+
+            // Check if a Plotly pie chart is already initialized
+            const plotPublicationType = document.getElementById('plotPublicationType');
+            if (plotPublicationType.data && plotPublicationType.data.length > 0) {
+                // Update existing pie chart
+                Plotly.update('plotPublicationType', pieData.data, pieData.layout);
+            } else {
+                // Initialize new pie chart
+                Plotly.newPlot('plotPublicationType', pieData.data, pieData.layout);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching pie chart data:', error);
+        });
+}
+
+function preparePlotlyData(data) {
+    // Convert data to Plotly format for pie chart
+    const pieData = [{
+        labels: data.map(entry => entry['Publication Type']),
+        values: data.map(entry => entry['Count']),
+        type: 'pie',
+    }];
+
+    return { data: pieData, layout: { title: 'Publication Types' } };
+}

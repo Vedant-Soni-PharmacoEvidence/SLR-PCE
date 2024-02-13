@@ -536,3 +536,57 @@ footer h2 {
 .header__content i:hover+.icon-text {
     display: block;
 }
+
+.dashboard{
+    margin-top: 15vh;
+    display: flex;
+}
+
+.column {
+    flex: 1;
+    padding: 10px;
+    background-color: rgba(99, 99, 99, 0.158);
+    backdrop-filter: blur(30px);   
+    box-shadow: 10px 10px 10px 10px rgba(0.3, 0.3, 0.3, 0.3); /* Light background color for columns */
+    border-radius: 10px; /* Rounded corners for columns */
+    margin: 10px;
+}
+
+/* Style for checkboxes */
+input[type="checkbox"] {
+    appearance: none; /* Remove default checkbox appearance */
+    -webkit-appearance: none; /* For older versions of webkit browsers */
+    width: 10px; /* Set the width of the custom checkbox */
+    height: 10px; /* Set the height of the custom checkbox */
+    border: 2px solid #db3434; /* Border color */
+    border-radius: 2px; /* Rounded corners */
+    outline: none; /* Remove default focus outline */
+    transition: background-color 0.3s; /* Smooth transition for background-color */
+    cursor: pointer; /* Add pointer cursor */
+}
+
+/* Style for checked checkboxes */
+input[type="checkbox"]:checked {
+    background-color: #34db87; /* Background color when checked */
+    border-color: #34db66; /* Border color when checked */
+}
+
+/* Style for checkbox labels */
+input[type="checkbox"] + label {
+    display: inline-block;
+    vertical-align: middle;
+    color: whitesmoke;
+    padding: 5px;
+    margin-right: 5px;
+    margin-left: 1px; /* Add some spacing between checkboxes and labels */
+    font-size: 12px; /* Adjust font size */
+}
+#yearCheckboxes{
+    background-color: rgba(99, 99, 99, 0.644);
+    backdrop-filter: blur(30px);   
+    box-shadow: 10px 10px 10px 10px rgba(0.3, 0.3, 0.3, 0.3);
+}
+#plotlyGraphContainer{
+    height:50vh;
+    
+}

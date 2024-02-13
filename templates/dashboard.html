@@ -3,19 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
+    <title>Your Dashboard</title>
+    <link rel="stylesheet" type="text/css" href="/static/css/landing.css" />
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
 <body>
-    <div>
-        <p>Human Include Count: <span id="humanIncludeCount"></span></p>
-        <p>Human Exclude Count: <span id="humanExcludeCount"></span></p>
-        <p>AI Include Count: <span id="aiIncludeCount"></span></p>
-        <p>AI Exclude Count: <span id="aiExcludeCount"></span></p>
-        <p>Accuracy Percentage: <span id="accuracyPercentage"></span></p>
+    <header class="expanded">
+        <nav class="header__navegation">
+          <img
+            src="https://static.wixstatic.com/media/85b92c_f21a10fac4d9497397a19f8aade0ec99~mv2.png/v1/fill/w_346,h_95,al_c,q_85,usm_0.66_1.00_0.01,enc_auto/PCE_White%20registered1.png"
+            alt="logo" srcset="" />
+          <ul id="navbarUl">
+            <li><a href="/home">Home</a></li>
+            <li><a href="#">Upload Model</a></li>
+            <li><a href="#">Sign Out</a></li>
+          </ul>
+        </nav>
+      </header>
+    <div class="dashboard">
+        <div class="column">
+            <div id="yearCheckboxes"></div>
+            <div id="plotlyGraphContainer"></div>
+        </div>
+        
+        <div class="column">
+            <div id="typeCheckboxes"></div>
+            <div id="plotPublicationType"></div>
+        </div>
     </div>
-    
-    <!-- Container for the plot -->
-    <div id="plotContainer"></div>
 
     <script src="/static/js/script.js"></script>
 </body>
