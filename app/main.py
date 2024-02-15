@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Form,UploadFile, File,Depends, HTTPException, Query
+from fastapi import FastAPI, Request, Form,UploadFile, File, Query
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pathlib import Path
 import os
@@ -6,25 +6,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles   
 from .jinjatemplates import templates
 from pydantic import BaseModel
-import boto3
-import json
 import pandas as pd
-from openpyxl import load_workbook
-import io
-import sys
 import time
-from mangum import Mangum
-import psutil
-import numpy as np  
-from app.businesslogic import analytics as an
 from typing import List
 import openai
-import matplotlib.pyplot as plt
-import mpld3
-import plotly.express as px
 from typing import Optional
-from typing import List
 import matplotlib.pyplot as plt
+from sklearn import metrics
 
 
 # excel_file_path = 'app/data/PSM.xlsx'
@@ -43,7 +31,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-handler=Mangum(app)
+
 #STATIC FILES
 BASE_DIR = Path(__file__).resolve().parent.parent
 static_dir = os.path.join(BASE_DIR, "static")
@@ -231,6 +219,60 @@ class GPTRequest(BaseModel):
 @app.get("/dashboard")
 async def read_dashboard(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request, "is_dashboard": True})
+
+
+@app.get("/get_metrics")
+async def get_metrics():
+    try:
+        file_path = './GPT4_results.xlsx'
+        df = pd.read_excel(file_path)
+
+        # Extract 'Decision' and 'ai_decision' columns
+        actual_values = df['Decision']
+        predicted_values = df['ai_decision']
+
+        # Calculate accuracy
+        accuracy = metrics.accuracy_score(actual_values, predicted_values)
+
+        # Calculate precision, recall, and F1-score
+        precision, recall, f1_score, _ = metrics.precision_recall_fscore_support(actual_values, predicted_values, average='binary', pos_label='Include')
+
+        # Create a summary table
+        summary_table = pd.DataFrame({
+            'Metric': ['Accuracy', 'Precision', 'Recall', 'F1-Score'],
+            'Value': [accuracy, precision, recall, f1_score]
+        })
+
+        # Convert the summary table to standard Python types
+        summary_json = summary_table.to_dict(orient='records')
+
+        # Additional decision metrics
+        
+        decision_metrics = {
+            'total_included_human': df[df['Decision'] == 'Include'].shape[0],
+            'total_excluded_human': df[df['Decision'] == 'Exclude'].shape[0],
+            'total_included_ai': df[df['ai_decision'] == 'Include'].shape[0],
+            'total_excluded_ai': df[df['ai_decision'] == 'Exclude'].shape[0],
+            'conflicting_decisions' : df[df['Decision'] != df['ai_decision']].shape[0],
+            'accuracy_percentage': float(accuracy) * 100  # Convert to float for JSON serialization
+        }
+        exclusion_reason_counts = df['Exclusion reason'].value_counts().reset_index()
+        exclusion_reason_counts.columns = ['Exclusion Reason', 'Count']
+
+        # Convert exclusion reason counts to a list of dictionaries
+        exclusion_reason_list = exclusion_reason_counts.to_dict(orient='records')
+
+# Return the JSON response
+        response_content = {"success": True, "data": {"summary_metrics": summary_json, "exclusion_reason_counts": exclusion_reason_list, "decision_metrics": decision_metrics}}
+        return JSONResponse(content=response_content, status_code=200)
+
+    except Exception as e:        
+        return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
+
+
+
+
+
 
 @app.get("/get_publications_by_year_and_type")
 async def get_publications_by_year_and_type(selected_years: Optional[str] = Query(None, title="Selected Years"), selected_types: Optional[str] = Query(None, title="Selected Types")):

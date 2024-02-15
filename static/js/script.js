@@ -234,6 +234,61 @@ document.addEventListener("DOMContentLoaded", function () {
             console.error('Error fetching bar graph data:', error);
         });
 
+    fetch('/get_metrics')
+        .then(response => response.json())
+        .then(data => {
+            console.log(data);
+    
+            // Update the summary table elements
+            data.data.summary_metrics.forEach(metric => {
+                const metricElement = document.getElementById(metric.Metric.toLowerCase() + 'Value');
+                if (metricElement) {
+                    metricElement.innerHTML = metric.Value .toFixed(3);
+                }
+            });
+    
+            // Update the decision metrics table elements
+            const totalIncludedHuman = document.getElementById('totalIncludedHuman');
+            const totalExcludedHuman = document.getElementById('totalExcludedHuman');
+            const totalIncludedAI = document.getElementById('totalIncludedAI');
+            const totalExcludedAI = document.getElementById('totalExcludedAI');
+            
+            const accuracyPercentage = document.getElementById('accuracyPercentage');
+            const conflictingdecisions= document.getElementById('conflictingdecisions');
+    
+            if (totalIncludedHuman && totalExcludedHuman && totalIncludedAI && totalExcludedAI && conflictingdecisions && accuracyPercentage ) {
+                totalIncludedHuman.innerHTML = data.data.decision_metrics.total_included_human;
+                totalExcludedHuman.innerHTML = data.data.decision_metrics.total_excluded_human;
+                totalIncludedAI.innerHTML = data.data.decision_metrics.total_included_ai;
+                totalExcludedAI.innerHTML = data.data.decision_metrics.total_excluded_ai;
+                conflictingdecisions.innerHTML=data.data.decision_metrics.conflicting_decisions;
+                accuracyPercentage.innerHTML =data.data.decision_metrics.accuracy_percentage + '%';
+                
+                
+            }
+            const exclusionReasonTableBody = document.getElementById('exclusionReasonTableBody');
+        exclusionReasonTableBody.innerHTML = '';
+        let grandTotal = 0;
+        data.data.exclusion_reason_counts.forEach(reason => {
+            const row = exclusionReasonTableBody.insertRow();
+            row.insertCell(0).textContent = reason['Exclusion Reason'];
+            row.insertCell(1).textContent = reason['Count'];
+            grandTotal += reason['Count'];
+        });
+
+        // Add grand total row
+        
+
+        // Populate grand total in the specified element
+        const grandTotalElement = document.getElementById('grandTotal');
+        if (grandTotalElement) {
+            grandTotalElement.textContent = grandTotal;
+        }
+    })
+    .catch(error => console.error('Error:', error));
+    
+    
+    
     // Fetch data for the pie chart from FastAPI backend
     fetch('/get_publications_by_year_and_type?type=true')
         .then(response => response.json())
@@ -248,7 +303,31 @@ document.addEventListener("DOMContentLoaded", function () {
             console.error('Error fetching pie chart data:', error);
         });
 });
+// Function to toggle visibility of the metric table and update heading
+function toggleMetricTable() {
+    const metricTable = document.getElementById('metricTable');
+    const heading = document.getElementById('metricTableHeading');
+    const moreInfo = document.getElementById('moreInfo');
 
+    if (metricTable.style.display === 'none') {
+        // If metric table is hidden, show the table and update heading
+        metricTable.style.display = 'table';
+        heading.innerText = 'Metric Table';
+        moreInfo.style.display = 'none';
+    } else {
+        // If metric table is visible, hide the table and update heading
+        metricTable.style.display = 'none';
+        heading.innerText = 'More Info';
+        moreInfo.style.display = 'block';
+        
+    }
+}
+
+// Event listener to toggle visibility when heading is clicked
+document.getElementById('metricTableHeading').addEventListener('click', toggleMetricTable);
+
+// Event listener to toggle visibility when heading is clicked
+document.getElementById('metricTableHeading').addEventListener('click', toggleMetricTable);
 function prepareBarGraphData(data) {
     // Create an array of unique colors for each year
     const uniqueColors = Array.from({ length: data.length }, (_, index) => `rgb(${index * 30}, ${index * 20 + 50}, ${index * 10 + 100})`);
@@ -277,6 +356,9 @@ function prepareBarGraphData(data) {
         },
         legend: {
             traceorder: 'reversed',
+        },
+        marker: {
+            color: 'blue',  // Set the color to blue
         },
     };
     return { data: barGraphData, layout: layout };
@@ -382,3 +464,5 @@ function preparePlotlyData(data) {
 
     return { data: pieData, layout: { title: 'Publication Types' } };
 }
+
+
