@@ -33,30 +33,62 @@
       <!-- Place your loading GIF here -->
       <img src="/static/images/Loading.gif" alt="Loading...">
   </div>
-    <div class="column1">
-      <!-- Content for the first column goes here -->
 
-      <h2>Upload Excel File</h2>
 
-      <label for="fileInput">
-        <div id="dropArea" type="file" class="drop-area" ondragover="handleDragOver(event)" ondrop="handleDrop(event)">
-          <img src="https://cdn.iconscout.com/icon/premium/png-512-thumb/file-upload-8-1110111.png?f=webp&w=256"
-            alt="upload-icon" />
-          <p style="height: 20vh;">Drag & Drop files here or click to select</p>
-      </label>
-      <input type="file" id="fileInput" class="file-input" onchange="handleFileSelection()" />
+
+
+  <div class="column1">
+    <!-- Top partition for upload file -->
+    <div class="upload-partition">
+      <h2>Upload Excel File and Inclusion & Exclusion Criteria</h2>
+      <div class="upload-content">
+        <label for="fileInput">
+          <div id="dropArea" type="file" class="drop-area" ondragover="handleDragOver(event)" ondrop="handleDrop(event)">
+            <img src="https://cdn.iconscout.com/icon/premium/png-512-thumb/file-upload-8-1110111.png?f=webp&w=256" alt="upload-icon" />
+            <p style="font-size: 12px;color: #4abaff;">Drag & Drop files here or click to select</p>
+            <input type="file" id="fileInput" class="file-input" onchange="handleFileSelection()" />
+          </div>
+        </label>
+        
+      </div>
     </div>
-
-    <!-- Add this button inside #fileUploadContainer -->
-    <button id="resetButton" class="btn" style="display: none">
-      Reset
-    </button>
-
-    <!-- <button class="btn" onclick="downloadFile()">Download Modified Excel</button> -->
-    <button id="model" button class="btn" style="width: 100%" onclick="uploadFile()">
-      Upload 
-    </button>
+    
+  
+    <!-- Bottom partition for text area -->
+    <div class="text-partition">
+      <div class="criteria-textarea">
+        <h3>Inclusion Criteria</h3>
+        <textarea id="inclusionCriteriaInput" rows="20" placeholder="Enter inclusion criteria..."></textarea>
+      </div>
+    
+      <div class="criteria-textarea">
+        <h3>Exclusion Criteria</h3>
+        <textarea id="exclusionCriteriaInput" rows="20" placeholder="Enter exclusion criteria..."></textarea>
+      </div>
+    </div>
+    <button id="model" button class="uploadbtn" onclick="uploadFile()">Upload</button>
+    
   </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   <div class="column2" disabled>
     <h2>Select AI Model</h2>
@@ -70,7 +102,7 @@
 
 <div class="ai-button" onclick="selectAI('NLP')" data-id="nlp" data-model="NLP Model" data-developer="PharmacoEvidence"
     data-year="2023" data-accuracy="Medium but requires trainings">
-    <img src="https://sambanova.ai/wp-content/uploads/2021/09/16%E2%80%94Breakthrough-Efficiency.jpg"
+    <img src="https://cdn-images-1.medium.com/v2/resize:fit:780/1*WssnLJ__IAUURwqms-I8LA.png"
         alt="NLP Logo" />
     <p>NLP Model</p>
 </div>

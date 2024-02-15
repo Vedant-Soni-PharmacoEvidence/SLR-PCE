@@ -23,6 +23,8 @@ import matplotlib.pyplot as plt
 import mpld3
 import plotly.express as px
 from typing import Optional
+from typing import List
+import matplotlib.pyplot as plt
 
 
 # excel_file_path = 'app/data/PSM.xlsx'
@@ -88,19 +90,25 @@ def home(request: Request):
 
 
 ##################################################################################################################################################################
+
 @app.post("/upload")
 async def upload_excel(request: Request, file: UploadFile = File(...)):
-    global uploaded_file_path
+    
     try:
+        
         # Save the uploaded Excel file to a directory (in this example, 'static')
         file_path = f"static/{file.filename}"
-        
+        global uploaded_file_path
         
         # Save the file
         with open(file_path, "wb") as file_object:
             file_object.write(file.file.read())
         
         uploaded_file_path=file_path
+        data = pd.read_excel(uploaded_file_path)
+        print(data)
+        
+        
         return JSONResponse(content={"success": True, "data": {"file_path": file_path}}, status_code=200)
 
     except Exception as e:
@@ -124,14 +132,14 @@ async def show_result(request:Request):
 
 # Additional routes based on the selected model
 @app.post("/chat_gpt_4")
-async def analyse_gpt():
-    # return {"message": "Analyzing GPT model"}
-    global uploaded_file_path
-    
-    
+async def analyse_gpt(request: Request):
     try:
-            # Read Excel file into a Pandas DataFrame
+        json_data = await request.json()
+        inclusion_criteria = json_data.get("criteria", {}).get("inclusion_criteria", "")
+        exclusion_criteria = json_data.get("criteria", {}).get("exclusion_criteria", "")
+
         data = pd.read_excel(uploaded_file_path)
+        print(data)
 
         titles = []
         abstracts = []
@@ -148,24 +156,9 @@ async def analyse_gpt():
                      Apply the Exclusion Criteria first. If any statement in the Exclusion Criteria is true, mark the citation as "Excluded".
                      If the citation passes the Exclusion Criteria, then check the Inclusion Criteria. Mark the Citation as "Included" only if it strictly and exactly passes all Inclusion Criteria statements; otherwise, mark the citation as "Excluded".
                      Inclusion Criteria:
-                     1. Condition: The study must mention one of the specified salt terms or their synonyms in relation to the specified health outcomes: 'salt', 'salt intake', 'sodium intake', '24-hour urinary excretion', 'spot urine analysis', 'sodium urine excretion', 'Nacl', 'low-salt', 'high-salt', 'low-sodium', 'high-sodium', 'sodium content', 'sodium', 'salt loaded', 'salt restricted', 'salt depletion', 'salted', 'medium salt', 'dietary salt', 'impact of sodium'. Synonyms of salt terms or association with salt should also be considered, except for salt intake as a covariate.
-                     2. Health outcome: The study should focus on the specified health outcomes and must be directly related to the mentioned salt terms or their synonyms where the health outcomes can be from the following list 'anal fistula', 'Arthritis specific outcomes', 'any hepatic disorder','any Urologic Disease','any obstetrics and gynaecological disorder','Safety', 'Metabolic syndrome', 'blood pressure', 'any health outcome', 'Weight gain', 'BMI', 'HDL', 'LDL', 'Hypertension', 'Adverse events associated with sodium intake', 'All-cause mortality', 'any type of Cardiovascular disease', 'eGFR', 'any Gastrointesinal disease', 'Kidney Disease', 'heart failure', 'renal function', 'Cancer', 'diabetes' etc. Consider the synonyms of these terms also.
-                     3. Population: The study must involve human adult patients aged 18 years and older.
-                     4. Objective: Strictly check the study must provide a relationship or association between salt terms and health outcomes.
+                     {inclusion_criteria}
                      Exclusion Criteria:
-                     1. Study Type: Strictly Exclude the citation if it falls under the following study types: Literature reviews, meta-analysis, systematic reviews, narrative reviews, case reports, case series.
-                     2. Population: Strictly mark Studies excluded that involving adolescents, children, animals (like mice, rats, etc).
-                     3. Exclude studies that mention relative salt term with mineral and hormones.
-                     4. Exclude studies analyzing populations with less than 10 individuals.
-                     5. Exclude studies focusing on populations of pregnant women, child-bearing women, lactating mothers, or preeclampsia but not premenopausal or menopausal.
-                     6. Exclude studies evaluating the association of genetic variation, polymerase chain reaction, single nucleotide polymorphism, or any synonym  with health outcomes and/or outcome responses to salt
-                     7. Strictly exclude studies that fail to demonstrate a direct relationship or association between salt terms and health outcomes.
-                     8. Strictly exclude studies that only estimating the salt or sodium concentration among population or groups by different estimation methods.
-                     9. Strictly exclude studies that only assessing salt intake as covariate or adjusted factors or covariate adjusted models but not assessing the relationship of salt and health outcomes.
-                     10. Exclude studies focusing solely on the influence of sodium or salt on the response to pharmacological or non-pharmacological interventions without investigating the relationship with health outcomes.
-                     11. Exclude studies assessing the association of pharmacological or non-pharmacological interventions with health outcomes with salt intake as covariate or adjusted factors or studying "serum sodium", "plasma sodium", adherence, compliance without investigating the relationship with health outcomes.
-                     12. Strictly mark the citation excluded if it is review or pooled study.
-                 
+                     {exclusion_criteria}
                  
                      Title: {Title}
                      Abstract: {Abstract}
@@ -185,7 +178,6 @@ async def analyse_gpt():
 
             response_text = completion.choices[0].message['content']
 
-            # Refine Parsing Logic
             if "included" in response_text.lower():
                 classification = "Include"
             else:
@@ -195,25 +187,24 @@ async def analyse_gpt():
             abstracts.append(Abstract)
             classifications.append(classification)
 
-        result_df = pd.DataFrame({
-            'Title': titles,
-            'Classification': classifications
-        })
-        data['ai_decision'] = classifications
-        global result_file_path
+        # Create a copy of the original DataFrame
+        result_data = data.copy()
 
-        result_file_path = "GPT4_results_with_decision.xlsx"
-        data.to_excel(result_file_path, index=False)
-        
+        # Add the 'ai_decision' column to the copied DataFrame
+        result_data['ai_decision'] = classifications
+
+        # Save the modified DataFrame
+        global result_file_path
+        result_file_path = "GPT4_results.xlsx"
+        result_data.to_excel(result_file_path, index=False)
 
         # Return JSON response with success and file path
         response_content = {"success": True, "result_file_path": result_file_path}
-
-        # Redirect to /dashboard upon successful file saving
         return JSONResponse(content=response_content), RedirectResponse(url="/dashboard")
-    
+
     except Exception as e:
         return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
+
 
 
 @app.post("/claude_bedrock_edition_")
@@ -241,30 +232,12 @@ class GPTRequest(BaseModel):
 async def read_dashboard(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request, "is_dashboard": True})
 
-
-# @app.get("/get_excel_data")
-# async def get_excel_data():
-#     file_path = 'app/data/GPT4_results_with_decision.xlsx'
-#     global result_file_path
-#     try:
-#         data = pd.read_excel(file_path)  # Set header=0 to use the first row as column names
-#         columns = [{"title": col} for col in data.columns]
-#         data_dict = {"data": data.to_dict(orient="records"), "columns": columns}
-#         return JSONResponse(content={"success": True, "data": data_dict})
-#     except Exception as e:
-#         return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
-
-
-file_path = 'app/data/Test.xlsx'
-data = pd.read_excel(file_path)
-
-
-
 @app.get("/get_publications_by_year_and_type")
-async def get_publications_by_year_and_type(selected_years: Optional[str] = None, selected_types: Optional[str] = None):
+async def get_publications_by_year_and_type(selected_years: Optional[str] = Query(None, title="Selected Years"), selected_types: Optional[str] = Query(None, title="Selected Types")):
     try:
         # Fetch the latest data
-        df = pd.DataFrame(data)
+        file_path = './GPT4_results.xlsx'
+        df = pd.read_excel(file_path)
 
         # Convert numeric columns to standard Python types
         df['Publication Year'] = df['Publication Year'].astype(int)
@@ -277,10 +250,13 @@ async def get_publications_by_year_and_type(selected_years: Optional[str] = None
         if selected_types:
             selected_types_list = selected_types.split(',')
             df = df[df['Publication Type'].astype(str).isin(selected_types_list)]
+
         if selected_years and selected_types:
             df = df[df['Publication Year'].astype(str).isin(selected_years_list) & df['Publication Type'].astype(str).isin(selected_types_list)]
-        # Drop NaN values from the DataFrame
-        df = df.dropna()
+
+        # Get unique values for 'Publication Year' and 'Publication Type'
+        unique_years = df['Publication Year'].unique().astype(str).tolist()
+        unique_types = df['Publication Type'].unique().astype(str).tolist()
 
         # Group data by year and count publications
         publications_by_year = df.groupby('Publication Year').size().reset_index(name='Count')
@@ -292,26 +268,11 @@ async def get_publications_by_year_and_type(selected_years: Optional[str] = None
         publications_by_type = df.groupby('Publication Type').size().reset_index(name='Count')
 
         return JSONResponse(content={
+            "unique_years": unique_years,
+            "unique_types": unique_types,
             "publications_by_year": publications_by_year.to_dict(orient='records'),
             "publications_by_type": publications_by_type.to_dict(orient='records')
         })
 
     except Exception as e:
         return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

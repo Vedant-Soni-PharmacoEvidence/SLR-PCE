@@ -38,13 +38,13 @@ document.addEventListener('DOMContentLoaded', function () {
 //////////////////////////upload file button /////////////////////////////////
 function uploadAndSelectModel() {
     var fileInput = document.getElementById('fileInput');
-    
+
     if (fileInput.files.length === 0) {
         alert("Please select an Excel file.");
     } else {
         window.location.href = '/model';
     }
-    
+
 }
 
 
@@ -52,35 +52,35 @@ function handleDragOver(event) {
     event.preventDefault();
     const dropArea = document.getElementById('dropArea');
     dropArea.classList.add('drag-over');
-  }
-  
-  function handleDrop(event) {
+}
+
+function handleDrop(event) {
     event.preventDefault();
     const dropArea = document.getElementById('dropArea');
     dropArea.classList.remove('drag-over');
-  
+
     const fileInput = document.getElementById('fileInput');
     fileInput.files = event.dataTransfer.files;
-  
+
     handleFileSelection();
-  }
-  
-  function handleFileSelection() {
+}
+
+function handleFileSelection() {
     const fileInput = document.getElementById('fileInput');
     const dropArea = document.getElementById('dropArea');
     const fileNameDisplay = dropArea.querySelector('p');
-  
+
     if (fileInput.files.length > 0) {
-      const fileName = fileInput.files[0].name;
-      fileNameDisplay.innerText = fileName;
+        const fileName = fileInput.files[0].name;
+        fileNameDisplay.innerText = fileName;
     }
-  }
+}
 
 // ////////////////////model.html handsontable/////////////////////////////////
 document.addEventListener('DOMContentLoaded', function () {
     uploadFile();
 
-    
+
 });
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -108,31 +108,48 @@ document.addEventListener('DOMContentLoaded', function () {
     
         // Replace spaces with underscores in the model name for the URL
         const modelNameForURL = modelName.replace(/[\s()]+/g, '_');
-    
         
+        // Capture the values of inclusionCriteria and exclusionCriteria
+        var inclusionCriteria = document.getElementById("inclusionCriteriaInput").value;
+        var exclusionCriteria = document.getElementById("exclusionCriteriaInput").value;
     
-        // Send the selected model name to the appropriate backend route based on the model
+        // Log the values
+        console.log('Inclusion Criteria:', inclusionCriteria);
+        console.log('Exclusion Criteria:', exclusionCriteria);
+    
+        var criteria = {
+            "inclusion_criteria": inclusionCriteria,
+            "exclusion_criteria": exclusionCriteria
+            // Add other data if needed
+        };
+    
+        // Include both criteria and model in the body
         fetch(`/${modelNameForURL.toLowerCase()}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ model: modelName }),
+            body: JSON.stringify({
+                model: modelName,
+                criteria: criteria
+            }),
         })
         .then(response => response.json())
         .then(data => {
             // Hide loading spinner
             document.getElementById("loading").style.display = "none";
             alert('File has been successfully saved as GPT4_results.xlsx!');
-            
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                document.getElementById("loading").style.display = "none";
-            })
-            
+            window.location.href="/dashboard"
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById("loading").style.display = "none";
+        });
     }
     
+    // Rest of your code...
+    
+
 
     // Add event listeners to AI model buttons
     const aiButtons = document.querySelectorAll('.ai-button');
@@ -155,6 +172,8 @@ async function uploadFile() {
     const fileInput = document.getElementById('fileInput');
     const file = fileInput.files[0];
 
+
+
     if (file) {
         const formData = new FormData();
         formData.append('file', file);
@@ -172,7 +191,7 @@ async function uploadFile() {
                 alert('File uploaded successfully!');
                 console.log("file was saved and ready for analysis");
 
-                
+
             } else {
                 console.error('File upload failed');
             }
@@ -181,6 +200,15 @@ async function uploadFile() {
         }
     }
 }
+
+
+
+
+
+
+
+
+
 
 
 
@@ -234,23 +262,23 @@ function prepareBarGraphData(data) {
         y: [entry['Count']],
         type: 'bar',
         name: entry['Publication Year'].toString(),
-        
         hoverinfo: 'y+name',
+        
     }));
 
     // Layout settings to customize axis labels and legend
     const layout = {
         xaxis: {
-            title: 'Publication Year',  // X-axis label
+            title: 'Publication Year',
+             // Set the step to 1 for a proper 1-step scale
         },
         yaxis: {
-            title: 'Publication Count',  // Y-axis label
+            title: 'Publication Count',
         },
         legend: {
-            traceorder: 'reversed',  // Reverse the order of legend items
+            traceorder: 'reversed',
         },
     };
-
     return { data: barGraphData, layout: layout };
 }
 

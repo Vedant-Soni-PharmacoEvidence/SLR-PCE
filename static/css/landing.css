@@ -86,6 +86,14 @@ h2 {
     font-weight: 100;
 
 }
+h3 {
+    color: #c0c0c0;
+    letter-spacing: 0;
+    margin-top: 1vh;
+    font-size: 1rem;
+    font-weight: 100;
+
+}
 
 footer img {
     width: 150px;
@@ -348,45 +356,95 @@ footer h2 {
     background-color: rgba(99, 99, 99, 0.158);
     backdrop-filter: blur(30px);    
     box-shadow: 10px 10px 10px 10px rgba(0.3, 0.3, 0.3, 0.3);
+    align-items: center; /* Center items horizontally */
+    justify-content: center; /* Center items vertically */
     height: 80vh;
     border-radius: 15px;
     margin-top: 15vh;
-    margin-left: 4vw;
-    flex:0  0 40%; /* 70% width */
+    margin-left: 1vw;
+    flex:0  0 65%; /* 70% width */
    
     padding: 20px 20px 20px 20px; 
 }
+.upload-partition {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .upload-content {
+    display: flex;
+    width: 100%;
+    height: 15vh;
+  }
+
+  label[for="fileInput"] {
+    width: 100%;
+    
+    height: 10px;
+    /* Adjust any additional styling as needed */
+  }
+
  
   .drop-area {
-    border: 2px dashed #666666c7;
+    border: 2px dashed #ffffff5b;
     position: relative;
     border-radius: 8px;
     padding: 0px;
-    height: 55vh;
-    margin-top: 5vh;
+    width: 100%;
+    height: 15vh;
+    margin-top: 1%;
+    
     
     cursor: pointer;
     text-align: center;
     transition: background-color 0.3s;
     z-index: 1001;
   }
-  
-  .drop-area p {
-    margin-top:7vh;
+  .drop-area img{
+    width: 8%;
+    margin-top: 0vh;
   }
-  .drop-area img {
-    margin-top:7vh;
-    width: 100px;
-  }
-  
+ 
+  .uploadbtn {
+    padding: 10px 20px;
+    background-color: #0063a0;
+    color: #fff;
+    border: none;
+    width: 100%;
+    border-radius: 25px;
+    font-size: 16px;
+    cursor: pointer;
+    
+    transition: background-color 0.3s ease;
+    transition: transform 0.3s ease;
+}
   .file-input {
     display: none;
     
   }
   
-  #resetButton {
-    margin-top: 10px;
-}
+  .text-partition {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .criteria-textarea {
+    width: 48%;
+    box-sizing: border-box;
+  }
+
+ 
+  body textarea {
+    /* Add "body" before "textarea" to increase specificity */
+    width: 100%;
+    background-color: #ffffff5b;
+    padding-left: 12px;
+    border-radius: 10px;
+    box-sizing: border-box;
+    height: 43vh;
+    overflow-y: auto;
+    resize: none;
+  }
 
 #loading {
     display: none;
@@ -399,7 +457,7 @@ footer h2 {
 }
 
 .column2 {
-    flex: 0 0 50%;
+    flex: 0 0 31%;
     background-color: rgba(99, 99, 99, 0.158);
     backdrop-filter: blur(30px);   
     box-shadow: 10px 10px 10px 10px rgba(0.3, 0.3, 0.3, 0.3);
@@ -552,6 +610,7 @@ footer h2 {
     margin: 10px;
 }
 
+
 /* Style for checkboxes */
 input[type="checkbox"] {
     appearance: none; /* Remove default checkbox appearance */
@@ -589,4 +648,25 @@ input[type="checkbox"] + label {
 #plotlyGraphContainer{
     height:50vh;
     
+}
+
+#yearRange {
+    width: 200px; /* Set the desired width for the slider */
+    margin-top: 5px;
+}
+
+.noUi-connect {
+    background: #fff; /* Set the color of the active range to white */
+    border: 1px solid #fff; /* Set the border to make the slider thinner */
+}
+
+.noUi-handle {
+    background: #000; /* Set the color of the handles to black */
+    border-radius: 50%;  /* Make the handle round */
+    width: 2px;  /* Set the desired width of the handle */
+    height: 2px; /* Set the desired height of the handle */
+}
+
+.noUi-handle:hover {
+    background: #333; /* Set the color when handles are hovered */
 }
