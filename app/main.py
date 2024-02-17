@@ -252,7 +252,7 @@ async def get_metrics(include: bool = Query(False, description="Include decision
         accuracy = metrics.accuracy_score(actual_values, predicted_values)
 
         # Calculate precision, recall, and F1-score
-        precision, recall, f1_score, _ = metrics.precision_recall_fscore_support(actual_values, predicted_values, average='binary', pos_label='Include')
+        precision, recall, f1_score, _ = metrics.precision_recall_fscore_support(actual_values, predicted_values, average='binary', pos_label='Include', zero_division=1)
 
         # Create a summary table
         summary_table = pd.DataFrame({
