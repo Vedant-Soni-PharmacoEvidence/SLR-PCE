@@ -312,7 +312,7 @@ document.addEventListener("DOMContentLoaded", function () {
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('An error occurred while fetching metrics. Please try again.');
+        
     });
     
     
