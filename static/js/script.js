@@ -262,7 +262,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 totalIncludedAI.innerHTML = data.data.decision_metrics.total_included_ai;
                 totalExcludedAI.innerHTML = data.data.decision_metrics.total_excluded_ai;
                 conflictingdecisions.innerHTML=data.data.decision_metrics.conflicting_decisions;
-                accuracyPercentage.innerHTML =data.data.decision_metrics.accuracy_percentage + '%';
+                accuracyPercentage.innerHTML =data.data.decision_metrics.accuracy_percentage.toFixed(2) + '%';
                 
                 
             }
@@ -284,9 +284,36 @@ document.addEventListener("DOMContentLoaded", function () {
         if (grandTotalElement) {
             grandTotalElement.textContent = grandTotal;
         }
+
+
+
+
+        const aiDecisionData = data.data.ai_decision_data;
+
+        if (aiDecisionData.length > 0) {
+            const labels = aiDecisionData.map(entry => entry.ai_decision);
+            const counts = aiDecisionData.map(entry => entry.count);
+
+            const dataTrace = {
+                x: labels,
+                y: counts,
+                type: 'bar',
+                
+            };
+
+            const layout = {
+                title: 'AI Decision Counts',
+                xaxis: { title: 'Decision' },
+                yaxis: { title: 'Count' }
+            };
+
+            Plotly.newPlot('aiDecisionChart', [dataTrace], layout);
+        }
     })
-    .catch(error => console.error('Error:', error));
-    
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while fetching metrics. Please try again.');
+    });
     
     
     // Fetch data for the pie chart from FastAPI backend

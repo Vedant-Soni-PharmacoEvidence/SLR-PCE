@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Form,UploadFile, File, Query
+from fastapi import FastAPI, Request, Form,UploadFile, File, Query,HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pathlib import Path
 import os
@@ -8,21 +8,11 @@ from .jinjatemplates import templates
 from pydantic import BaseModel
 import pandas as pd
 import time
-from typing import List
 import openai
-from typing import Optional
-import matplotlib.pyplot as plt
+from typing import Optional, List
 from sklearn import metrics
 
 
-# excel_file_path = 'app/data/PSM.xlsx'
-# output_file_path = 'app/data/output.csv'
-
-
-openai.api_type = "azure"
-openai.api_base = "https://pce-aiservices600098751.openai.azure.com/"
-openai.api_version = "2023-07-01-preview"
-openai.api_key = "abe66c9c81b74e8d9a191f5a8b7932cc"
 app = FastAPI() 
 app.add_middleware(
     CORSMiddleware,
@@ -31,7 +21,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+openai.api_type = "azure"
+openai.api_base = "https://pce-aiservices600098751.openai.azure.com/"
+openai.api_version = "2023-07-01-preview"
+openai.api_key = "abe66c9c81b74e8d9a191f5a8b7932cc"
 #STATIC FILES
 BASE_DIR = Path(__file__).resolve().parent.parent
 static_dir = os.path.join(BASE_DIR, "static")
@@ -41,7 +34,6 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 def read_root(request: Request):
     return templates.TemplateResponse("landing.html", {"request": request})
 
-
 @app.get("/signin",response_class=HTMLResponse)
 def updateExcel(request: Request):
     try:
@@ -50,6 +42,24 @@ def updateExcel(request: Request):
     except Exception as e:
         return {"ERROR":"SOMETHING WENT WRONG"}
         
+@app.get("/home", response_class=HTMLResponse)
+def home(request: Request):
+    return templates.TemplateResponse("home.html", {"request": request})
+
+@app.get("/upload", response_class=HTMLResponse)
+def home(request: Request):
+    return templates.TemplateResponse("upload.html", {"request": request})
+
+@app.get("/model", response_class=HTMLResponse)
+def home(request: Request):
+    return templates.TemplateResponse("model.html", {"request": request})
+
+@app.get("/dashboard")
+async def read_dashboard(request: Request):
+    return templates.TemplateResponse("dashboard.html", {"request": request, "is_dashboard": True})
+##################################################################################################################################################################
+
+
 @app.post("/signin", response_class=HTMLResponse)
 async def signin(request: Request, username: str = Form(...),  password: str = Form(...)):
     time.sleep(3)
@@ -58,26 +68,7 @@ async def signin(request: Request, username: str = Form(...),  password: str = F
         return templates.TemplateResponse("home.html", {"request": request, "username": username})
     else:
         return templates.TemplateResponse("landing.html", {"request": request, "error": "Invalid credentials. Please try again."})
-    
 
-    
-
-@app.get("/home", response_class=HTMLResponse)
-def home(request: Request):
-    return templates.TemplateResponse("home.html", {"request": request})
-
-
-@app.get("/upload", response_class=HTMLResponse)
-def home(request: Request):
-    return templates.TemplateResponse("upload.html", {"request": request})
-
-@app.get("/model", response_class=HTMLResponse)
-
-def home(request: Request):
-    return templates.TemplateResponse("model.html", {"request": request})
-
-
-##################################################################################################################################################################
 
 @app.post("/upload")
 async def upload_excel(request: Request, file: UploadFile = File(...)):
@@ -106,6 +97,9 @@ async def upload_excel(request: Request, file: UploadFile = File(...)):
 ##################################################################################################################################################################
 class ModelInfo(BaseModel):
     model: str
+class GPTRequest(BaseModel):
+    uploaded_file_path:str
+    model: str
 
 @app.post("/analyse")
 async def analyse_model(model_info: ModelInfo):
@@ -119,6 +113,7 @@ async def show_result(request:Request):
     return templates.TemplateResponse("result.html", {"request": request, "model": "GPT"})
 
 # Additional routes based on the selected model
+
 @app.post("/chat_gpt_4")
 async def analyse_gpt(request: Request):
     try:
@@ -152,7 +147,7 @@ async def analyse_gpt(request: Request):
                      Abstract: {Abstract}
                 '''
             }
-
+            print(message_text)
             completion = openai.ChatCompletion.create(
                 engine="GPT-4",
                 messages=[message_text],
@@ -182,16 +177,43 @@ async def analyse_gpt(request: Request):
         result_data['ai_decision'] = classifications
 
         # Save the modified DataFrame
-        global result_file_path
-        result_file_path = "GPT4_results.xlsx"
-        result_data.to_excel(result_file_path, index=False)
+        if result_data is not None:
+            global result_file_path
+            result_file_path = "GPT4_results.xlsx"
 
-        # Return JSON response with success and file path
-        response_content = {"success": True, "result_file_path": result_file_path}
-        return JSONResponse(content=response_content), RedirectResponse(url="/dashboard")
+            try:
+                # Save the DataFrame to Excel
+                result_data.to_excel(result_file_path, index=False)
+
+                # Print a success message
+                print("File has been successfully updated.")
+
+                # Return JSON response with success and file path
+                response_content = {"success": True, "result_file_path": result_file_path}
+                return JSONResponse(content=response_content), RedirectResponse(url="/dashboard")
+
+            except Exception as e:
+                # Print an error message
+                print(f"Error saving file: {str(e)}")
+
+                # Return JSON response with error
+                response_content = {"success": False, "error": f"Error saving file: {str(e)}"}
+                return JSONResponse(content=response_content, status_code=500)
+
+        else:
+            # Print an error message
+            print("Failed to save in file")
+
+            # Return JSON response with error
+            response_content = {"success": False, "error": "Failed to save in file"}
+            return JSONResponse(content=response_content, status_code=500)
 
     except Exception as e:
-        return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
+        # Print an error message
+        print(f"Error processing request: {str(e)}")
+
+        # Return JSON response with error
+        return JSONResponse(content={"success": False, "error": f"Error processing request: {str(e)}"}, status_code=500)
 
 
 
@@ -207,22 +229,17 @@ async def analyse_nlp():
 async def analyse_google():
     return {"message": "Analyzing Google model"}
 
-################################################################################    GPT    ####################################################################################################
-class GPTRequest(BaseModel):
-    uploaded_file_path:str
-    model: str
 
 
-################################################################################    GPT END   ####################################################################################################
 
 
-@app.get("/dashboard")
-async def read_dashboard(request: Request):
-    return templates.TemplateResponse("dashboard.html", {"request": request, "is_dashboard": True})
+
+
+
 
 
 @app.get("/get_metrics")
-async def get_metrics():
+async def get_metrics(include: bool = Query(False, description="Include decision metrics")):
     try:
         file_path = './GPT4_results.xlsx'
         df = pd.read_excel(file_path)
@@ -247,7 +264,6 @@ async def get_metrics():
         summary_json = summary_table.to_dict(orient='records')
 
         # Additional decision metrics
-        
         decision_metrics = {
             'total_included_human': df[df['Decision'] == 'Include'].shape[0],
             'total_excluded_human': df[df['Decision'] == 'Exclude'].shape[0],
@@ -256,14 +272,29 @@ async def get_metrics():
             'conflicting_decisions' : df[df['Decision'] != df['ai_decision']].shape[0],
             'accuracy_percentage': float(accuracy) * 100  # Convert to float for JSON serialization
         }
-        exclusion_reason_counts = df['Exclusion reason'].value_counts().reset_index()
-        exclusion_reason_counts.columns = ['Exclusion Reason', 'Count']
+
+        
+            # Count 'Include' and 'Exclude' values in 'ai_decision' column
+        ai_decision_counts = df['ai_decision'].value_counts().reset_index()
+            
+        ai_decision_data = ai_decision_counts.to_dict(orient='records')
+        
 
         # Convert exclusion reason counts to a list of dictionaries
+        exclusion_reason_counts = df['Exclusion reason'].value_counts().reset_index()
+        exclusion_reason_counts.columns = ['Exclusion Reason', 'Count']
         exclusion_reason_list = exclusion_reason_counts.to_dict(orient='records')
 
-# Return the JSON response
-        response_content = {"success": True, "data": {"summary_metrics": summary_json, "exclusion_reason_counts": exclusion_reason_list, "decision_metrics": decision_metrics}}
+        # Return the JSON response
+        response_content = {
+            "success": True,
+            "data": {
+                "summary_metrics": summary_json,
+                "exclusion_reason_counts": exclusion_reason_list,
+                "decision_metrics": decision_metrics,
+                "ai_decision_data": ai_decision_data
+            }
+        }
         return JSONResponse(content=response_content, status_code=200)
 
     except Exception as e:        
@@ -318,3 +349,77 @@ async def get_publications_by_year_and_type(selected_years: Optional[str] = Quer
 
     except Exception as e:
         return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
+    
+
+
+
+
+
+
+@app.get("/get_unique_values", response_class=JSONResponse)
+async def get_unique_values():
+    try:
+        df = pd.read_excel("./Gpt Test.xlsx")
+        unique_years = df["Publication Year"].unique().tolist()
+        unique_types = df["Publication Type"].unique().tolist()
+
+        return {"publicationYear": unique_years, "publicationType": unique_types}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+
+
+
+
+@app.get("/filtered_data", response_class=HTMLResponse)
+async def get_filtered_data(
+    publication_year: List[str] = Query(..., description="Filter by Publication Year"),
+    publication_type: List[str] = Query(..., description="Filter by Publication Type"),
+):
+    try:
+        # Apply filters
+        df = pd.read_excel("./Gpt Test.xlsx")
+        filtered_data = df
+
+        # Apply inclusive filtering logic based on selected criteria
+        if publication_year:
+            year_conditions = filtered_data["Publication Year"].isin(publication_year) | (filtered_data["Publication Year"] == "")
+            filtered_data = filtered_data[year_conditions]
+        if publication_type:
+            type_conditions = filtered_data["Publication Type"].isin(publication_type) | (filtered_data["Publication Type"] == "")
+            filtered_data = filtered_data[type_conditions]
+
+        # Log the filtered data for troubleshooting
+        print(filtered_data)
+
+        # Convert filtered data to HTML table
+        html_table = filtered_data.to_html(index=False)
+
+        # Return the HTML response
+        return HTMLResponse(content=html_table)
+
+    except Exception as e:
+        # Handle exceptions and log the error
+        print(f"An error occurred: {str(e)}")
+        return HTMLResponse(content=f"An error occurred: {str(e)}")
+    
+
+
+
+
+@app.get("/filtered_data")
+async def get_filtered_data(
+    publication_year: Optional[int] = Query(None),
+    publication_type: Optional[str] = Query(None),
+):
+    filtered_data = data
+
+    if publication_year:
+        filtered_data = [item for item in filtered_data if item["Publication_Year"] == publication_year]
+
+    if publication_type:
+        filtered_data = [item for item in filtered_data if item["Publication_Type"] == publication_type]
+
+    return filtered_data

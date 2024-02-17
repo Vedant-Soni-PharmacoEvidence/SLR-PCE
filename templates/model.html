@@ -58,12 +58,24 @@
     <div class="text-partition">
       <div class="criteria-textarea">
         <h3>Inclusion Criteria</h3>
-        <textarea id="inclusionCriteriaInput"  rows="20" style="background-color: rgba(149, 255, 149, 0.418); font-size: 20px;" placeholder="Enter inclusion criteria..."></textarea>
+        <textarea id="inclusionCriteriaInput"  rows="20" style="background-color: rgba(149, 255, 149, 0.26); font-size: 20px;" placeholder="Enter inclusion criteria...">
+1. Study Design: Only randomized controlled trials (RCTs) are included. No other study design is acceptable.
+2. Condition: The study must explicitly mention 'post-traumatic stress disorder'.
+3. Medications: Include studies that primarily investigate the utilization of the following medications: sertraline, 'sertraline plus brexpiprazole', fluoxetine, paroxetine, and venlafaxine. These medications are permissible for use either as standalone treatments (monotherapy) or in combination therapy. However, in cases of combination therapy, it is imperative that the combination exclusively involves the aforementioned medications.
+4. Population: The study must involve adult patients aged 18 years and older.
+5. if the trial is assessing more than two interventions in different arms of the randomized control trial, at least two interventions should be from sertraline, 'sertraline plus brexpiprazole', fluoxetine, paroxetine, and venlafaxine
+          </textarea>
       </div>
     
       <div class="criteria-textarea">
-        <h3>Exclusion Criteria</h3>
-        <textarea id="exclusionCriteriaInput" rows="20" style="background-color: rgba(255, 115, 115, 0.534);font-size: 20px;"placeholder="Enter exclusion criteria..."></textarea>
+        <h3 >Exclusion Criteria</h3>
+        <textarea id="exclusionCriteriaInput" rows="20" style="background-color: rgba(255, 94, 94, 0.247);color: black; font-size: 20px;"placeholder="Enter exclusion criteria...">
+1. Study Type: Literature reviews, meta-analyses, systematic reviews, review, narrative review, observational studies (including retrospective, case-control, cohort studies, pharmacokinetic, pharmacodynamics study, cost-effectiveness, economic evaluation studies, longitudinal studies, and cross-sectional studies).
+2. Population: Studies exclusively involving animals, adolescents, children, or populations other than those with post-traumatic stress disorder.
+3. Medications: Exclude studies that do not primarily investigate the utilization of the following medications: sertraline, 'sertraline plus brexpiprazole', fluoxetine, paroxetine, and venlafaxine. These medications are permissible for use either as standalone treatments (monotherapy) or in combination therapy. However, in cases of combination therapy, it is imperative that the combination exclusively involves the aforementioned medications.
+4. Strictly mark the citation as excluded if it mentions review or pooled analysis which includes data from more than one study.
+5. If study design is not clearly randomized controlled trials (RCTs) then exclude the study.
+          </textarea>
       </div>
     </div>
     <button id="model" button class="uploadbtn" onclick="uploadFile()">Upload</button>
@@ -94,7 +106,7 @@
     <h2>Select AI Model</h2>
     <div class="models">
       <div class="ai-button" onclick="selectAI('GPT')" data-id="gpt" data-model="Chat GPT 4"
-    data-developer="OpenAI Global" data-year="2022" data-accuracy="High">
+    data-developer="OpenAI Global" data-year="2023" data-accuracy="High">
     <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/ChatGPT_logo.svg/1024px-ChatGPT_logo.svg.png"
         alt="ChatGPT Logo" />
     <p>Chat GPT 4</p>
