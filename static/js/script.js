@@ -254,14 +254,16 @@ document.addEventListener("DOMContentLoaded", function () {
             const totalExcludedAI = document.getElementById('totalExcludedAI');
             
             const accuracyPercentage = document.getElementById('accuracyPercentage');
-            const conflictingdecisions= document.getElementById('conflictingdecisions');
-    
-            if (totalIncludedHuman && totalExcludedHuman && totalIncludedAI && totalExcludedAI && conflictingdecisions && accuracyPercentage ) {
+            const conflictingdecisionsInclude= document.getElementById('conflictingdecisionsInclude');
+            const conflictingdecisionsExclude= document.getElementById('conflictingdecisionsExclude');
+            if (totalIncludedHuman && totalExcludedHuman && totalIncludedAI && totalExcludedAI && conflictingdecisionsInclude && conflictingdecisionsExclude && accuracyPercentage ) {
                 totalIncludedHuman.innerHTML = data.data.decision_metrics.total_included_human;
                 totalExcludedHuman.innerHTML = data.data.decision_metrics.total_excluded_human;
                 totalIncludedAI.innerHTML = data.data.decision_metrics.total_included_ai;
                 totalExcludedAI.innerHTML = data.data.decision_metrics.total_excluded_ai;
-                conflictingdecisions.innerHTML=data.data.decision_metrics.conflicting_decisions;
+                conflictingdecisionsInclude.innerHTML=data.data.decision_metrics.conflicting_decisions_include;
+                conflictingdecisionsExclude.innerHTML=data.data.decision_metrics.conflicting_decisions_exclude;
+                
                 accuracyPercentage.innerHTML =data.data.decision_metrics.accuracy_percentage.toFixed(2) + '%';
                 
                 

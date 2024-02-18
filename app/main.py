@@ -243,10 +243,12 @@ async def get_metrics(include: bool = Query(False, description="Include decision
     try:
         file_path = './GPT4_results.xlsx'
         df = pd.read_excel(file_path)
-
+        print(df)
         # Extract 'Decision' and 'ai_decision' columns
         actual_values = df['Decision']
         predicted_values = df['ai_decision']
+        print(actual_values)
+        print(predicted_values)
 
         # Calculate accuracy
         accuracy = metrics.accuracy_score(actual_values, predicted_values)
@@ -265,13 +267,15 @@ async def get_metrics(include: bool = Query(False, description="Include decision
 
         # Additional decision metrics
         decision_metrics = {
-            'total_included_human': df[df['Decision'] == 'Include'].shape[0],
-            'total_excluded_human': df[df['Decision'] == 'Exclude'].shape[0],
-            'total_included_ai': df[df['ai_decision'] == 'Include'].shape[0],
-            'total_excluded_ai': df[df['ai_decision'] == 'Exclude'].shape[0],
-            'conflicting_decisions' : df[df['Decision'] != df['ai_decision']].shape[0],
-            'accuracy_percentage': float(accuracy) * 100  # Convert to float for JSON serialization
-        }
+    'total_included_human': df[df['Decision'] == 'Include'].shape[0],
+    'total_excluded_human': df[df['Decision'] == 'Exclude'].shape[0],
+    'total_included_ai': df[df['ai_decision'] == 'Include'].shape[0],
+    'total_excluded_ai': df[df['ai_decision'] == 'Exclude'].shape[0],
+    'conflicting_decisions_include': df[(df['Decision'] == 'Include') & (df['ai_decision'] == 'Exclude')].shape[0],
+    'conflicting_decisions_exclude': df[(df['Decision'] == 'Exclude') & (df['ai_decision'] == 'Include')].shape[0],
+    'accuracy_percentage': float(accuracy) * 100  # Convert to float for JSON serialization
+}
+
 
         
             # Count 'Include' and 'Exclude' values in 'ai_decision' column
@@ -311,6 +315,7 @@ async def get_publications_by_year_and_type(selected_years: Optional[str] = Quer
         # Fetch the latest data
         file_path = './GPT4_results.xlsx'
         df = pd.read_excel(file_path)
+        print(df)
 
         # Convert numeric columns to standard Python types
         df['Publication Year'] = df['Publication Year'].astype(int)
