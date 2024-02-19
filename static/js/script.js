@@ -309,7 +309,7 @@ if (aiDecisionData.length > 0) {
     };
 
     const layout = {
-        title: 'AI Decision Counts',
+        title: 'AI Decision',
         xaxis: { title: 'Decision' },
         yaxis: { title: 'Count' }
     };
@@ -397,9 +397,6 @@ function prepareBarGraphData(data) {
     // Create an array of unique colors for each year
     const uniqueColors = Array.from({ length: data.length }, (_, index) => `rgb(${index * 30}, ${index * 20 + 50}, ${index * 10 + 100})`);
 
-
-
-
     // Convert data to Plotly format for bar graph
     const barGraphData = data.map((entry, index) => ({
         x: [entry['Publication Year']],
@@ -407,25 +404,24 @@ function prepareBarGraphData(data) {
         type: 'bar',
         name: entry['Publication Year'].toString(),
         hoverinfo: 'y+name',
-
+        
     }));
 
     // Layout settings to customize axis labels and legend
     const layout = {
         xaxis: {
-            title: 'Publication Year',
+            title: 'Years',
             // Set the step to 1 for a proper 1-step scale
         },
         yaxis: {
-            title: 'Publication Count',
+            title: 'Number of Publications',
         },
         legend: {
             traceorder: 'reversed',
         },
-        marker: {
-            color: 'blue',  // Set the color to blue
-        },
+        title: 'Distribution of Evidence by Year',  // Add a title to the layout
     };
+
     return { data: barGraphData, layout: layout };
 }
 

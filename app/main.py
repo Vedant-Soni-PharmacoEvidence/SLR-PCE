@@ -152,7 +152,7 @@ async def analyse_gpt(request: Request):
                 engine="GPT-4",
                 messages=[message_text],
                 temperature=0.2,
-                max_tokens=2000,
+                max_tokens=800,
                 top_p=0.95,
                 frequency_penalty=0,
                 presence_penalty=0,
