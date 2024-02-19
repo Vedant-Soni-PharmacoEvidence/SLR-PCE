@@ -105,24 +105,24 @@ document.addEventListener('DOMContentLoaded', function () {
     function analyseModel() {
         document.getElementById("loading").style.display = "block";
         const modelName = document.getElementById('model-name-info').textContent;
-    
+
         // Replace spaces with underscores in the model name for the URL
         const modelNameForURL = modelName.replace(/[\s()]+/g, '_');
-        
+
         // Capture the values of inclusionCriteria and exclusionCriteria
         var inclusionCriteria = document.getElementById("inclusionCriteriaInput").value;
         var exclusionCriteria = document.getElementById("exclusionCriteriaInput").value;
-    
+
         // Log the values
         console.log('Inclusion Criteria:', inclusionCriteria);
         console.log('Exclusion Criteria:', exclusionCriteria);
-    
+
         var criteria = {
             "inclusion_criteria": inclusionCriteria,
             "exclusion_criteria": exclusionCriteria
             // Add other data if needed
         };
-    
+
         // Include both criteria and model in the body
         fetch(`/${modelNameForURL.toLowerCase()}`, {
             method: 'POST',
@@ -134,21 +134,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 criteria: criteria
             }),
         })
-        .then(response => response.json())
-        .then(data => {
-            // Hide loading spinner
-            document.getElementById("loading").style.display = "none";
-            alert('File has been successfully saved as GPT4_results.xlsx!');
-            window.location.href="/dashboard"
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            document.getElementById("loading").style.display = "none";
-        });
+            .then(response => response.json())
+            .then(data => {
+                // Hide loading spinner
+                document.getElementById("loading").style.display = "none";
+                alert('File has been successfully saved as GPT4_results.xlsx!');
+                window.location.href = "/dashboard"
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById("loading").style.display = "none";
+            });
     }
-    
+
     // Rest of your code...
-    
+
 
 
     // Add event listeners to AI model buttons
@@ -238,86 +238,122 @@ document.addEventListener("DOMContentLoaded", function () {
         .then(response => response.json())
         .then(data => {
             console.log(data);
-    
+
             // Update the summary table elements
             data.data.summary_metrics.forEach(metric => {
                 const metricElement = document.getElementById(metric.Metric.toLowerCase() + 'Value');
                 if (metricElement) {
-                    metricElement.innerHTML = metric.Value .toFixed(3);
+                    metricElement.innerHTML = metric.Value.toFixed(3);
                 }
             });
-    
+            console.log(data.data.decision_metrics)
+
             // Update the decision metrics table elements
             const totalIncludedHuman = document.getElementById('totalIncludedHuman');
             const totalExcludedHuman = document.getElementById('totalExcludedHuman');
             const totalIncludedAI = document.getElementById('totalIncludedAI');
             const totalExcludedAI = document.getElementById('totalExcludedAI');
-            
             const accuracyPercentage = document.getElementById('accuracyPercentage');
-            const conflictingdecisionsInclude= document.getElementById('conflictingdecisionsInclude');
-            const conflictingdecisionsExclude= document.getElementById('conflictingdecisionsExclude');
-            if (totalIncludedHuman && totalExcludedHuman && totalIncludedAI && totalExcludedAI && conflictingdecisionsInclude && conflictingdecisionsExclude && accuracyPercentage ) {
-                totalIncludedHuman.innerHTML = data.data.decision_metrics.total_included_human;
-                totalExcludedHuman.innerHTML = data.data.decision_metrics.total_excluded_human;
-                totalIncludedAI.innerHTML = data.data.decision_metrics.total_included_ai;
-                totalExcludedAI.innerHTML = data.data.decision_metrics.total_excluded_ai;
-                conflictingdecisionsInclude.innerHTML=data.data.decision_metrics.conflicting_decisions_include;
-                conflictingdecisionsExclude.innerHTML=data.data.decision_metrics.conflicting_decisions_exclude;
-                
-                accuracyPercentage.innerHTML =data.data.decision_metrics.accuracy_percentage.toFixed(2) + '%';
-                
-                
-            }
+            const conflictingdecisionsInclude = document.getElementById('conflictingdecisionsInclude');
+            const conflictingdecisionsExclude = document.getElementById('conflictingdecisionsExclude');
+            const totalHuman = document.getElementById('totalHuman');
+            const totalAI = document.getElementById('totalAI');  
+            const totalConflicts = document.getElementById('totalConflicts'); 
+
+            totalIncludedHuman.innerHTML = data.data.decision_metrics.total_included_human;
+            totalExcludedHuman.innerHTML = data.data.decision_metrics.total_excluded_human;
+            totalIncludedAI.innerHTML = data.data.decision_metrics.total_included_ai;
+            totalExcludedAI.innerHTML = data.data.decision_metrics.total_excluded_ai;
+            conflictingdecisionsInclude.innerHTML = data.data.decision_metrics.conflicting_decisions_include;
+            conflictingdecisionsExclude.innerHTML = data.data.decision_metrics.conflicting_decisions_exclude;
+            totalAI.innerHTML = data.data.decision_metrics.totalAI;
+            totalHuman.innerHTML = data.data.decision_metrics.totalHuman;
+            totalConflicts.innerHTML = data.data.decision_metrics.totalConflicts; 
+            accuracyPercentage.innerHTML = data.data.decision_metrics.accuracy_percentage.toFixed(2) + '%';
+
+
+
+
             const exclusionReasonTableBody = document.getElementById('exclusionReasonTableBody');
-        exclusionReasonTableBody.innerHTML = '';
-        let grandTotal = 0;
-        data.data.exclusion_reason_counts.forEach(reason => {
-            const row = exclusionReasonTableBody.insertRow();
-            row.insertCell(0).textContent = reason['Exclusion Reason'];
-            row.insertCell(1).textContent = reason['Count'];
-            grandTotal += reason['Count'];
+            exclusionReasonTableBody.innerHTML = '';
+            let grandTotal = 0;
+            data.data.exclusion_reason_counts.forEach(reason => {
+                const row = exclusionReasonTableBody.insertRow();
+                row.insertCell(0).textContent = reason['Reason'];
+                row.insertCell(1).textContent = reason['Count'];
+                grandTotal += reason['Count'];
+            });
+
+            // Add grand total row
+
+
+            // Populate grand total in the specified element
+            const grandTotalElement = document.getElementById('grandTotal');
+            if (grandTotalElement) {
+                grandTotalElement.textContent = grandTotal;
+            }
+
+
+
+
+            const aiDecisionData = data.data.ai_decision_data;
+
+if (aiDecisionData.length > 0) {
+    let allData = aiDecisionData.map(entry => entry.ai_decision);
+    let allCounts = aiDecisionData.map(entry => entry.count);
+
+    const dataTrace = {
+        x: allData,
+        y: allCounts,
+        type: 'bar',
+    };
+
+    const layout = {
+        title: 'AI Decision Counts',
+        xaxis: { title: 'Decision' },
+        yaxis: { title: 'Count' }
+    };
+
+    Plotly.newPlot('aiDecisionChart', [dataTrace], layout);
+
+    // Add event listeners for checkboxes
+    const includeCheckbox = document.getElementById('includeCheckbox');
+    const excludeCheckbox = document.getElementById('excludeCheckbox');
+
+    includeCheckbox.addEventListener('change', updateChart);
+    excludeCheckbox.addEventListener('change', updateChart);
+
+    function updateChart() {
+        let filteredData = [];
+        let filteredCounts = [];
+
+        if (includeCheckbox.checked) {
+            filteredData.push(...allData.filter(decision => decision === 'Include'));
+            filteredCounts.push(...allCounts.filter((count, index) => allData[index] === 'Include'));
+        }
+
+        if (excludeCheckbox.checked) {
+            filteredData.push(...allData.filter(decision => decision === 'Exclude'));
+            filteredCounts.push(...allCounts.filter((count, index) => allData[index] === 'Exclude'));
+        }
+
+        const updatedTrace = {
+            x: filteredData,
+            y: filteredCounts,
+            type: 'bar',
+        };
+
+        Plotly.newPlot('aiDecisionChart', [updatedTrace], layout);
+    }
+}
+
+        })
+        .catch(error => {
+            console.error('Error:', error);
+
         });
 
-        // Add grand total row
-        
 
-        // Populate grand total in the specified element
-        const grandTotalElement = document.getElementById('grandTotal');
-        if (grandTotalElement) {
-            grandTotalElement.textContent = grandTotal;
-        }
-
-
-
-
-        const aiDecisionData = data.data.ai_decision_data;
-
-        if (aiDecisionData.length > 0) {
-            const labels = aiDecisionData.map(entry => entry.ai_decision);
-            const counts = aiDecisionData.map(entry => entry.count);
-
-            const dataTrace = {
-                x: labels,
-                y: counts,
-                type: 'bar',
-                
-            };
-
-            const layout = {
-                title: 'AI Decision Counts',
-                xaxis: { title: 'Decision' },
-                yaxis: { title: 'Count' }
-            };
-
-            Plotly.newPlot('aiDecisionChart', [dataTrace], layout);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        
-    });
-    
-    
     // Fetch data for the pie chart from FastAPI backend
     fetch('/get_publications_by_year_and_type?type=true')
         .then(response => response.json())
@@ -348,7 +384,7 @@ function toggleMetricTable() {
         metricTable.style.display = 'none';
         heading.innerText = 'More Info';
         moreInfo.style.display = 'block';
-        
+
     }
 }
 
@@ -363,7 +399,7 @@ function prepareBarGraphData(data) {
 
 
 
-    
+
     // Convert data to Plotly format for bar graph
     const barGraphData = data.map((entry, index) => ({
         x: [entry['Publication Year']],
@@ -371,14 +407,14 @@ function prepareBarGraphData(data) {
         type: 'bar',
         name: entry['Publication Year'].toString(),
         hoverinfo: 'y+name',
-        
+
     }));
 
     // Layout settings to customize axis labels and legend
     const layout = {
         xaxis: {
             title: 'Publication Year',
-             // Set the step to 1 for a proper 1-step scale
+            // Set the step to 1 for a proper 1-step scale
         },
         yaxis: {
             title: 'Publication Count',

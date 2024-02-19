@@ -85,7 +85,7 @@ async def upload_excel(request: Request, file: UploadFile = File(...)):
         
         uploaded_file_path=file_path
         data = pd.read_excel(uploaded_file_path)
-        print(data)
+        
         
         
         return JSONResponse(content={"success": True, "data": {"file_path": file_path}}, status_code=200)
@@ -122,7 +122,7 @@ async def analyse_gpt(request: Request):
         exclusion_criteria = json_data.get("criteria", {}).get("exclusion_criteria", "")
 
         data = pd.read_excel(uploaded_file_path)
-        print(data)
+       
 
         titles = []
         abstracts = []
@@ -147,7 +147,7 @@ async def analyse_gpt(request: Request):
                      Abstract: {Abstract}
                 '''
             }
-            print(message_text)
+            
             completion = openai.ChatCompletion.create(
                 engine="GPT-4",
                 messages=[message_text],
@@ -243,12 +243,11 @@ async def get_metrics(include: bool = Query(False, description="Include decision
     try:
         file_path = './GPT4_results.xlsx'
         df = pd.read_excel(file_path)
-        print(df)
+        
         # Extract 'Decision' and 'ai_decision' columns
         actual_values = df['Decision']
         predicted_values = df['ai_decision']
-        print(actual_values)
-        print(predicted_values)
+        
 
         # Calculate accuracy
         accuracy = metrics.accuracy_score(actual_values, predicted_values)
@@ -267,13 +266,16 @@ async def get_metrics(include: bool = Query(False, description="Include decision
 
         # Additional decision metrics
         decision_metrics = {
-    'total_included_human': df[df['Decision'] == 'Include'].shape[0],
-    'total_excluded_human': df[df['Decision'] == 'Exclude'].shape[0],
-    'total_included_ai': df[df['ai_decision'] == 'Include'].shape[0],
-    'total_excluded_ai': df[df['ai_decision'] == 'Exclude'].shape[0],
-    'conflicting_decisions_include': df[(df['Decision'] == 'Include') & (df['ai_decision'] == 'Exclude')].shape[0],
-    'conflicting_decisions_exclude': df[(df['Decision'] == 'Exclude') & (df['ai_decision'] == 'Include')].shape[0],
-    'accuracy_percentage': float(accuracy) * 100  # Convert to float for JSON serialization
+    'total_included_human': int(df[df['Decision'] == 'Include'].shape[0]),
+    'total_excluded_human': int(df[df['Decision'] == 'Exclude'].shape[0]),
+    'totalHuman': int(df['Decision'].count()),
+    'total_included_ai': int(df[df['ai_decision'] == 'Include'].shape[0]),
+    'total_excluded_ai': int(df[df['ai_decision'] == 'Exclude'].shape[0]),
+    'totalAI': int(df['ai_decision'].count()),
+    'conflicting_decisions_include': int(df[(df['Decision'] == 'Include') & (df['ai_decision'] == 'Exclude')].shape[0]),
+    'conflicting_decisions_exclude': int(df[(df['Decision'] == 'Exclude') & (df['ai_decision'] == 'Include')].shape[0]),
+    'totalConflicts': int(df[df['Decision'] != df['ai_decision']].shape[0]),
+    'accuracy_percentage': float(accuracy) * 100 # Convert to float for JSON serialization
 }
 
 
@@ -285,8 +287,9 @@ async def get_metrics(include: bool = Query(False, description="Include decision
         
 
         # Convert exclusion reason counts to a list of dictionaries
-        exclusion_reason_counts = df['Exclusion reason'].value_counts().reset_index()
-        exclusion_reason_counts.columns = ['Exclusion Reason', 'Count']
+        exclusion_reason_counts = df['Reason'].value_counts().reset_index()
+        exclusion_reason_counts.columns = ['Reason', 'Count']
+        
         exclusion_reason_list = exclusion_reason_counts.to_dict(orient='records')
 
         # Return the JSON response
@@ -315,7 +318,7 @@ async def get_publications_by_year_and_type(selected_years: Optional[str] = Quer
         # Fetch the latest data
         file_path = './GPT4_results.xlsx'
         df = pd.read_excel(file_path)
-        print(df)
+        
 
         # Convert numeric columns to standard Python types
         df['Publication Year'] = df['Publication Year'].astype(int)
