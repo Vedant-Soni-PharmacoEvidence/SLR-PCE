@@ -1,0 +1,695 @@
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans&family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    border: none;
+    outline: none;
+    box-sizing: border-box;
+    font-family: "Poppins", sans-serif;
+}
+
+p{
+    color: #cfcfcf;
+}
+
+
+body {
+    margin: 0;
+    padding: 0;
+    background-image: linear-gradient(0deg, rgba(0, 0, 0, 0.397), rgba(0, 0, 0, 0.404)), url("/static/images/bg1.jpg");
+    background-position: center;
+    background-size: cover;
+    background-attachment: fixed;
+    font-family: Arial, sans-serif;
+    overflow-y: auto;
+    height: 100%;
+
+}
+
+
+header {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    background-color: rgba(99, 99, 99, 0.233);
+    backdrop-filter: blur(3px);
+    padding: 20px;
+    text-align: center;
+    z-index: 1001;
+}
+
+
+.header__navegation {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.header__navegation img {
+    max-width: 170px;
+   
+}
+
+.header__navegation ul {
+    display: flex;
+    align-items: center;
+    list-style: none;
+    gap: 30px;
+    color: #be2bbb;
+}
+
+footer {
+    bottom: 0px;
+    position: fixed;
+    left: 0;
+    width: 100%;
+    background-color: rgba(99, 99, 99, 0.233);
+    backdrop-filter: blur(3px);
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+h1 {
+    color: #ebebeb;
+    letter-spacing: 0;
+    font-size: 3.1rem;
+    font-weight: 500;
+    line-height: 46px;
+}
+
+h2 {
+    color: #c0c0c0;
+    letter-spacing: 0;
+    font-size: 1.5rem;
+    font-weight: 100;
+
+}
+h3 {
+    color: #c0c0c0;
+    letter-spacing: 0;
+    margin-top: 1vh;
+    font-size: 1rem;
+    font-weight: 100;
+
+}
+
+footer img {
+    width: 150px;
+    background-color: rgba(255, 255, 255, 0);
+
+
+
+
+    /* Adjust spacing between the logo and heading */
+}
+
+footer h2 {
+    color: #afafaf;
+    font-size: 1rem;
+    text-align: right;
+
+
+
+
+}
+
+.content {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    width: 100vw;
+    height: 100%;
+    
+    margin-top: 15vh;
+    margin-bottom: 10vh;
+    overflow-y: auto;
+    
+
+
+
+    padding: 20px;
+    color: #ffffff;
+    align-items: center;
+}
+
+.btn {
+    padding: 10px 20px;
+    background-color: #0063a0;
+    color: #fff;
+    border: none;
+    border-radius: 25px;
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 2vh;
+    transition: background-color 0.3s ease;
+    transition: transform 0.3s ease;
+}
+.btn:disabled{
+    background-color: #afafaf;
+ }
+
+.btn:hover {
+    background-color: #004169;
+    transform: scale(1.1);
+
+
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+    .header__navegation {
+        flex-direction: column;
+        /* Stack items vertically on smaller screens */
+        align-items: flex-start;
+        /* Align items to the start on smaller screens */
+    }
+    .content {
+        position: fixed;
+        width: 100vw;
+        height: 100vh;
+        margin-top: 15vh;
+        
+        overflow-y: auto;
+    
+    
+    
+        padding: 20px;
+        color: #ffffff;
+        align-items: center;
+    }
+    
+
+    .header__navegation ul {
+        margin-top: 10px;
+        /* Adjust margin for spacing */
+        margin-left: 0;
+        /* Reset left margin on smaller screens */
+    }
+}
+
+
+.intro {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.header__navegation a {
+    position: relative;
+    color: #ffffff;
+    text-decoration: none;
+    padding-bottom: 5px;
+    font-size: 1.1em;
+}
+
+.header__navegation a::after {
+    position: absolute;
+    content: "";
+    bottom: 0;
+    left: 0;
+    width: 0%;
+    height: 2px;
+    color: #0063a0;
+    background-color: #0063a0;
+    transition: all 0.5s ease;
+}
+
+.header__navegation a:hover::after {
+    width: 100%;
+    color: #0063a0;
+}
+
+.header__content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    height: 100%;
+}
+
+.header__content h1 {
+    color: #fff;
+    font-size: 3.125em;
+    font-weight: 600;
+    text-align: center;
+}
+
+.header__content h2 {
+    color: #ffffff;
+    font-size: 1.875em;
+    font-weight: 500;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.header__content i {
+    font-size: 2em;
+    color: #fff;
+    margin: 10px;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.header__content i:hover {
+    transform: scale(1.2);
+}
+
+.header__content .icon-text {
+    display: none;
+    color: #fff;
+    text-align: center;
+    font-size: 1.2em;
+}
+
+.header__content i:hover+.icon-text {
+    display: block;
+}
+
+
+.signup-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+
+}
+
+.signup-card {
+    background-color: rgba(99, 99, 99, 0.233);
+    backdrop-filter: blur(3px);
+
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 10px 10px 10px 10px rgba(0.3, 0.3, 0.3, 0.3);
+    width: 300px;
+    /* Adjust the width 0as needed */
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+
+    /* margin: auto; Add this line to center the card */
+}
+
+.signup-card form {
+    margin-top: 20px;
+}
+
+.signup-card form label {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.signup-card form input {
+    width: 90%;
+    background-color: #5f5f5f5d;
+    border-radius: 20px;
+    padding: 8px;
+    margin-bottom: 16px;
+}
+
+.signup-card form button {
+    background-color: #0063a0;
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.signup-card form button:hover {
+    background-color: #004169;
+}
+
+.home-section {
+
+    background-color: rgba(99, 99, 99, 0.233);
+    backdrop-filter: blur(3px);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 10px 10px 10px 10px rgba(0.3, 0.3, 0.3, 0.3);
+    width: 60vw;
+    
+
+    font-size: 1.1em;
+    
+    font-weight: 80;
+    
+    color: #f1f1f1;
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+
+    
+
+
+}
+
+
+                                     /* model.html */
+
+
+.column1 {
+    background-color: rgba(99, 99, 99, 0.158);
+    backdrop-filter: blur(30px);    
+    box-shadow: 10px 10px 10px 10px rgba(0.3, 0.3, 0.3, 0.3);
+    align-items: center; /* Center items horizontally */
+    justify-content: center; /* Center items vertically */
+    height: 80vh;
+    border-radius: 15px;
+    margin-top: 15vh;
+    margin-left: 1vw;
+    flex:0  0 65%; /* 70% width */
+   
+    padding: 20px 20px 20px 20px; 
+}
+.upload-partition {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .upload-content {
+    display: flex;
+    width: 100%;
+    height: 15vh;
+  }
+
+  label[for="fileInput"] {
+    width: 100%;
+    
+    height: 10px;
+    /* Adjust any additional styling as needed */
+  }
+
+ 
+  .drop-area {
+    border: 2px dashed #ffffff5b;
+    position: relative;
+    border-radius: 8px;
+    padding: 0px;
+    width: 100%;
+    height: 15vh;
+    margin-top: 1%;
+    
+    
+    cursor: pointer;
+    text-align: center;
+    transition: background-color 0.3s;
+    z-index: 1001;
+  }
+  .drop-area img{
+    width: 8%;
+    margin-top: 0vh;
+  }
+ .uploadbtn:disabled{
+    background-color: #afafaf;
+ }
+  .uploadbtn {
+    padding: 10px 20px;
+    background-color: #0063a0;
+    color: #fff;
+    border: none;
+    width: 100%;
+    border-radius: 25px;
+    font-size: 16px;
+    cursor: pointer;
+    
+    transition: background-color 0.3s ease;
+    transition: transform 0.3s ease;
+}
+  .file-input {
+    display: none;
+    
+  }
+  
+  .text-partition {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .criteria-textarea {
+    width: 48%;
+    box-sizing: border-box;
+  }
+
+ 
+  body textarea {
+    /* Add "body" before "textarea" to increase specificity */
+    width: 100%;
+    background-color: #ffffff5b;
+    padding-left: 12px;
+    border-radius: 10px;
+    box-sizing: border-box;
+    height: 43vh;
+    overflow-y: auto;
+    resize: none;
+  }
+
+#loading {
+    display: none;
+    
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+}
+
+.column2 {
+    flex: 0 0 31%;
+    background-color: rgba(99, 99, 99, 0.158);
+    backdrop-filter: blur(30px);   
+    box-shadow: 10px 10px 10px 10px rgba(0.3, 0.3, 0.3, 0.3);
+    padding: 15px;
+    height: 80vh;
+    margin-top: 15vh;
+    margin-left: 5vh;
+    border-radius: 15px;
+    
+}
+.models{
+    display: grid;
+    grid-template-rows: repeat(1, auto);
+    grid-template-columns: repeat(4, 1fr); /* Arrange in 2 columns */
+    gap: 5px; /* Adjust the gap between items as needed */
+    margin-top: 6%;
+    height: 19vh;
+}
+
+.ai-button {
+    cursor: pointer;
+    width: 100%; /* Take full width of the column */
+    border: 2px solid transparent;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.3s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+
+.ai-button img {
+    width: 80px; /* Adjust the size as needed */
+    height: 80px; /* Adjust the size as needed */
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.ai-button p {
+    color: #ffffff; /* Set your desired color for paragraph text */
+    margin: 8px 0; /* Adjust the margin as needed */
+    font-size: 12px;
+    
+}
+
+.ai-button.selected {
+    
+  
+    border-color: #ffffff; /* Highlight color when selected */
+}
+
+.ai-info{
+    height: 27vh;
+  
+    margin-top: 7vh;
+    margin-left: 10%;
+    
+}
+.ai-info p {
+    margin: -8px 0 0px -8px; /* Adjust the top and bottom margin */
+}
+
+ #handsontableContainer{
+    display: none;
+    flex-direction: column;
+    margin-top: 80vh;
+ }
+    
+
+/* Additional styles for responsiveness if needed */
+@media (max-width: 768px) {
+    .upload-area {
+        height: 50vh;
+    }
+}
+
+
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .main__fill {
+        padding: 20px;
+        /* Adjust the padding for smaller screens */
+    }
+
+    .main {
+        backdrop-filter: blur(5px);
+        /* Adjust the blur effect for smaller screens */
+    }
+}
+
+@media (max-width: 800px) {
+    .header__navegation ul {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .header__navegation {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .header__navegation img {
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+}
+
+/* Added styles for the icons and their animations */
+.header__content i {
+    font-size: 2em;
+    color: #fff;
+    margin: 10px;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.header__content i:hover {
+    transform: scale(1.2);
+}
+
+.header__content .icon-text {
+    display: none;
+    color: #fff;
+    text-align: center;
+    font-size: 1.2em;
+}
+
+.header__content i:hover+.icon-text {
+    display: block;
+}
+
+.dashboard{
+    margin-top: 15vh;
+    display: flex;
+}
+
+.column {
+    flex: 1;
+    padding: 10px;
+    background-color: rgba(99, 99, 99, 0.158);
+    backdrop-filter: blur(30px);   
+    box-shadow: 10px 10px 10px 10px rgba(0.3, 0.3, 0.3, 0.3); /* Light background color for columns */
+    border-radius: 10px; /* Rounded corners for columns */
+    margin: 10px;
+}
+
+
+/* Style for checkboxes */
+input[type="checkbox"] {
+    appearance: none; /* Remove default checkbox appearance */
+    -webkit-appearance: none; /* For older versions of webkit browsers */
+    width: 10px; /* Set the width of the custom checkbox */
+    height: 10px; /* Set the height of the custom checkbox */
+    border: 2px solid #db3434; /* Border color */
+    border-radius: 2px; /* Rounded corners */
+    outline: none; /* Remove default focus outline */
+    transition: background-color 0.3s; /* Smooth transition for background-color */
+    cursor: pointer; /* Add pointer cursor */
+}
+
+/* Style for checked checkboxes */
+input[type="checkbox"]:checked {
+    background-color: #34db87; /* Background color when checked */
+    border-color: #34db66; /* Border color when checked */
+}
+
+/* Style for checkbox labels */
+input[type="checkbox"] + label {
+    display: inline-block;
+    vertical-align: middle;
+    color: whitesmoke;
+    padding: 5px;
+    margin-right: 5px;
+    margin-left: 1px; /* Add some spacing between checkboxes and labels */
+    font-size: 12px; /* Adjust font size */
+}
+#yearCheckboxes{
+    background-color: rgba(99, 99, 99, 0.644);
+    backdrop-filter: blur(30px);   
+    box-shadow: 10px 10px 10px 10px rgba(0.3, 0.3, 0.3, 0.3);
+}
+#plotlyGraphContainer{
+    height:50vh;
+    
+}
+
+.metric-table {
+    margin: 20px;
+    
+    
+}
+#metricTableHeading{
+    cursor: pointer;
+}
+table {
+    width: 100%;
+    border-collapse: separate;
+    margin-top: 10px;
+    border-radius: 15px;
+    border: 1px solid #ffffff;
+    background-color: #ffffff;
+    
+
+    
+}
+th{
+    background-color: #ffffff;
+    border-radius: 25px;
+    
+}
+ td {
+    
+    border-radius: 25px;
+    background-color: #ffffff;
+}
+
+th, td {
+    padding: 10px;
+    text-align: left;
+}
+

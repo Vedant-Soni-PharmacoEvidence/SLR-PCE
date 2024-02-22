@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Your Dashboard</title>
+    <link rel="stylesheet" type="text/css" href="/static/css/landing.css" />
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  </head>
+  <body>
+    <header class="expanded">
+      <nav class="header__navegation">
+        <img
+          src="https://static.wixstatic.com/media/85b92c_f21a10fac4d9497397a19f8aade0ec99~mv2.png/v1/fill/w_346,h_95,al_c,q_85,usm_0.66_1.00_0.01,enc_auto/PCE_White%20registered1.png"
+          alt="logo"
+          srcset=""
+        />
+        <ul id="navbarUl">
+          <li><a href="/home">Home</a></li>
+          <li><a href="/model">Upload Model</a></li>
+          <li><a href="/">Sign Out</a></li>
+        </ul>
+      </nav>
+    </header>
+    <div class="dashboard">
+      <!-- <p>selected File: </p> -->
+      <div class="column">
+        <div class="decision-table">
+          <h2>Decision Summary</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Human</th>
+                <th>AI</th>
+                <th>Conflict</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Included</td>
+                <td><span id="totalIncludedHuman">-</span></td>
+                <td><span id="totalIncludedAI">-</span></td>
+                <td><span id="conflictingdecisionsInclude">-</span></td>
+              </tr>
+              <tr>
+                <td>Excluded</td>
+                <td><span id="totalExcludedHuman">-</span></td>
+                <td><span id="totalExcludedAI">-</span></td>
+                <td><span id="conflictingdecisionsExclude">-</span></td>
+              </tr>
+              <tr>
+                <td>--------</td>
+                <td>--------</td>
+                <td>--------</td>
+                <td>--------</td>
+              </tr>
+              <tr>
+                <td>Overall</td>
+                <td><span id="totalHuman">-</span></td>
+                <td><span id="totalAI">-</span></td>
+                <td><span id="totalConflicts">-</span></td>
+              </tr>
+            </tbody>
+            <tr>
+              <td
+                colspan="4"
+                style="
+                  text-align: center;
+                  color: white;
+                  background-color: #0063a0;
+                  width: 100%;
+                  font-weight: bold;
+                "
+              >
+                Accuracy is <span id="accuracyPercentage">-</span>
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="metric-table">
+          <h3 id="metricTableHeading">More Info</h3>
+          <p id="moreInfo" style="font-size: 12px">
+            Additional information about Model.
+          </p>
+          <table id="metricTable" style="display: none">
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Accuracy</td>
+                <td><span id="accuracyValue">-</span></td>
+              </tr>
+              <tr>
+                <td>Precision</td>
+                <td><span id="precisionValue">-</span></td>
+              </tr>
+              <tr>
+                <td>Recall</td>
+                <td><span id="recallValue">-</span></td>
+              </tr>
+              <tr>
+                <td>F1-Score</td>
+                <td><span id="f1-scoreValue">-</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="exclusion-table">
+          <h2>Exclusion Reason</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Exclusion reason</th>
+                <th>Count</th>
+              </tr>
+            </thead>
+            <tbody id="exclusionReasonTableBody"></tbody>
+            <tr>
+              <td
+                style="
+                  font-weight: bold;
+                  color: white;
+                  background-color: #0063a0;
+                "
+              >
+                Grand Total
+              </td>
+              <td
+                style="
+                  font-weight: bold;
+                  color: white;
+                  background-color: #0063a0;
+                "
+                id="grandTotal"
+              >
+                -
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="column">
+        <h2>Visual Stats</h2>
+        <label>
+            <input type="checkbox" id="includeCheckbox" checked> Include
+        </label>
+        <label>
+            <input type="checkbox" id="excludeCheckbox" checked> Exclude
+        </label>
+        <div id="chart1"></div>
+        <div id="chart2"></div>
+        <div id="chart3"></div>
+    </div>
+    </div>
+
+    <script defer src="/static/js/script.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </body>
+</html>
