@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Form,UploadFile, File, Query,HTTPException
+from fastapi import FastAPI, Request, Form,UploadFile, File, Query,HTTPException, Depends,BackgroundTasks
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pathlib import Path
 import os
@@ -13,7 +13,12 @@ from typing import Optional, List
 from sklearn import metrics
 import numpy as np
 from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import text
+from datetime import datetime, timedelta
+import asyncio
+from openpyxl import load_workbook
 
 
 app = FastAPI() 
@@ -37,10 +42,27 @@ openai.api_type = "azure"
 openai.api_base = "https://pce-aiservices600098751.openai.azure.com/"
 openai.api_version = "2023-07-01-preview"
 openai.api_key = "abe66c9c81b74e8d9a191f5a8b7932cc"
+
+
+
 #STATIC FILES
 BASE_DIR = Path(__file__).resolve().parent.parent
 static_dir = os.path.join(BASE_DIR, "static")
 app.mount("/static", StaticFiles(directory=static_dir), name="static") 
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+result_file_path = "GPT4_results.xlsx"
+timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+print(timestamp)
+
 
 @app.get("/", response_class=HTMLResponse)
 def read_root(request: Request):
@@ -83,12 +105,9 @@ async def signin(request: Request, username: str = Form(...),  password: str = F
 
 
 
-@app.post("/fetch_data")
-async def fetch_data():
+@app.get("/fetch_data")
+async def fetch_data(db: Session = Depends(get_db)):
     try:
-        # Connect to the database
-        db = SessionLocal()
-
         # Execute a query to fetch data from MySQL
         query = "SELECT * FROM pce.data50"
         data = pd.read_sql(query, engine)
@@ -99,10 +118,9 @@ async def fetch_data():
         return JSONResponse(content={"success": True, "data": data.to_dict(orient='records')}, status_code=200)
 
     except Exception as e:
-        return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
-    finally:
-        # Close the database connection
-        db.close()
+        # Log the error for debugging
+        print(f"Error: {str(e)}")
+        return JSONResponse(content={"success": False, "error": "Internal Server Error"}, status_code=500)
 
 
 @app.get("/filter")
@@ -113,11 +131,11 @@ def get_filtered_dataframe(include: bool = Query(True), exclude: bool = Query(Tr
     # Read the Excel file into a DataFrame
     df = pd.read_excel(file_path)
 
-    # Replace NaN values with None
+    # Replace NaN or NaT values with None
     df = df.where(pd.notna(df), None)
 
-    # Convert DataFrame types to standard Python types
-    df = df.map(lambda x: x.item() if isinstance(x, np.generic) else x)
+    # Convert Timestamp objects to standard Python datetime objects
+    df = df.map(lambda x: pd.to_datetime(x).to_pydatetime() if isinstance(x, pd.Timestamp) else x)
 
     # Convert the 'ai_decision' column to string
     df['ai_decision'] = df['ai_decision'].astype(str)
@@ -131,8 +149,6 @@ def get_filtered_dataframe(include: bool = Query(True), exclude: bool = Query(Tr
         filtered_data = df[df['ai_decision'] == decision_value]
         # Convert the filtered data to a dictionary
         response_data = filtered_data.to_dict(orient='records')
-
-    
 
     # Return the JSON response
     return JSONResponse(content=response_data)
@@ -194,106 +210,155 @@ async def show_result(request:Request):
 
 # Additional routes based on the selected model
 
-@app.post("/chat_gpt_4")
-async def analyse_gpt(request: Request):
+
+
+
+
+
+
+
+
+
+
+
+
+# Function to fetch data from the database
+def fetch_data_from_db(timestamp: str, db: Session):
+    query = f"SELECT * FROM pce.data50 WHERE timestamp < '{timestamp}' LIMIT 10"
+    data = pd.read_sql(query, engine)
+    return data
+
+# Function to save DataFrame to Excel
+def save_to_excel(result_data, file_path):
     try:
-        json_data = await request.json()
-        inclusion_criteria = json_data.get("criteria", {}).get("inclusion_criteria", "")
-        exclusion_criteria = json_data.get("criteria", {}).get("exclusion_criteria", "")
+        # Check if the file exists
+        file_exists = Path(file_path).exists()
 
-        data = pd.read_excel(uploaded_file_path)
-       
+        if file_exists:
+            # Load the existing workbook
+            wb = load_workbook(file_path)
 
-        titles = []
-        abstracts = []
-        classifications = []
+            # Get the active sheet
+            sheet = wb.active
 
-        for index, row in data.iterrows():
-            Title = row['Title']
-            Abstract = row['Abstract']
+            # Append data to the existing sheet or create a new one
+            offset = 0 if file_exists else 1
 
-            message_text = {
-                "role": "system",
-                "content": f'''
-                     Based on the below exclusion and inclusion criteria, please classify the given Citation as "Included" or "Excluded".
-                     Apply the Exclusion Criteria first. If any statement in the Exclusion Criteria is true, mark the citation as "Excluded".
-                     If the citation passes the Exclusion Criteria, then check the Inclusion Criteria. Mark the Citation as "Included" only if it strictly and exactly passes all Inclusion Criteria statements; otherwise, mark the citation as "Excluded".
-                     Inclusion Criteria:
-                     {inclusion_criteria}
-                     Exclusion Criteria:
-                     {exclusion_criteria}
-                 
-                     Title: {Title}
-                     Abstract: {Abstract}
-                '''
-            }
-            
-            completion = openai.ChatCompletion.create(
-                engine="GPT-4",
-                messages=[message_text],
-                temperature=0.2,
-                max_tokens=800,
-                top_p=0.95,
-                frequency_penalty=0,
-                presence_penalty=0,
-                stop=None
-            )
+            # If it's a new sheet, write the headers first
+            if offset == 1:
+                sheet.append(result_data.columns.tolist())
 
-            response_text = completion.choices[0].message['content']
+            # Append data rows
+            for row in result_data.iterrows():
+                sheet.append(row[1].tolist())
 
-            if "included" in response_text.lower():
-                classification = "Include"
-            else:
-                classification = "Exclude"  # Placeholder for manual verification
-
-            titles.append(Title)
-            abstracts.append(Abstract)
-            classifications.append(classification)
-
-        # Create a copy of the original DataFrame
-        result_data = data.copy()
-
-        # Add the 'ai_decision' column to the copied DataFrame
-        result_data['ai_decision'] = classifications
-
-        # Save the modified DataFrame
-        if result_data is not None:
-            global result_file_path
-            result_file_path = "GPT4_results.xlsx"
-
-            try:
-                # Save the DataFrame to Excel
-                result_data.to_excel(result_file_path, index=False)
-
-                # Print a success message
-                print("File has been successfully updated.")
-
-                # Return JSON response with success and file path
-                response_content = {"success": True, "result_file_path": result_file_path}
-                return JSONResponse(content=response_content), RedirectResponse(url="/dashboard")
-
-            except Exception as e:
-                # Print an error message
-                print(f"Error saving file: {str(e)}")
-
-                # Return JSON response with error
-                response_content = {"success": False, "error": f"Error saving file: {str(e)}"}
-                return JSONResponse(content=response_content, status_code=500)
-
+            # Save the workbook
+            wb.save(file_path)
         else:
-            # Print an error message
-            print("Failed to save in file")
+            # Create a new Excel file
+            result_data.to_excel(file_path, index=False)
 
-            # Return JSON response with error
-            response_content = {"success": False, "error": "Failed to save in file"}
-            return JSONResponse(content=response_content, status_code=500)
-
+        return True
     except Exception as e:
-        # Print an error message
-        print(f"Error processing request: {str(e)}")
+        print(f"Error saving file: {str(e)}")
+        return False
 
-        # Return JSON response with error
-        return JSONResponse(content={"success": False, "error": f"Error processing request: {str(e)}"}, status_code=500)
+# Background task to fetch and process data
+async def background_task(db: Session, result_file_path: str, inclusion_criteria: str, exclusion_criteria: str):
+    while True:
+        global timestamp
+        print (timestamp)
+        # Fetch data from the database based on time interval
+        data = fetch_data_from_db(timestamp, db)
+        print(data)
+        # json_data = await request.json()
+        # inclusion_criteria = json_data.get("criteria", {}).get("inclusion_criteria", "")
+        # exclusion_criteria = json_data.get("criteria", {}).get("exclusion_criteria", "")
+
+        if not data.empty:
+            titles = []
+            abstracts = []
+            classifications = []
+
+            for index, row in data.iterrows():
+                Title = row['Title']
+                Abstract = row['Abstract']
+
+                message_text = {
+                    "role": "system",
+                    "content": f'''
+                         Based on the below exclusion and inclusion criteria, please classify the given Citation as "Included" or "Excluded".
+                         Apply the Exclusion Criteria first. If any statement in the Exclusion Criteria is true, mark the citation as "Excluded".
+                         If the citation passes the Exclusion Criteria, then check the Inclusion Criteria. Mark the Citation as "Included" only if it strictly and exactly passes all Inclusion Criteria statements; otherwise, mark the citation as "Excluded".
+                         Inclusion Criteria:
+                         {inclusion_criteria}
+                         Exclusion Criteria:
+                         {exclusion_criteria}
+
+                         Title: {Title}
+                         Abstract: {Abstract}
+                    '''
+                }
+
+                completion = openai.ChatCompletion.create(
+                    engine="GPT-4",
+                    messages=[message_text],
+                    temperature=0.2,
+                    max_tokens=800,
+                    top_p=0.95,
+                    frequency_penalty=0,
+                    presence_penalty=0,
+                    stop=None
+                )
+
+                response_text = completion.choices[0].message['content']
+
+                if "included" in response_text.lower():
+                    classification = "Include"
+                else:
+                    classification = "Exclude"  # Placeholder for manual verification
+
+                titles.append(Title)
+                abstracts.append(Abstract)
+                classifications.append(classification)
+
+            # Create a copy of the original DataFrame
+            result_data = data.copy()
+            result_data = result_data.drop(columns=['timestamp'])
+
+            # Add the 'ai_decision' column to the copied DataFrame
+            result_data['ai_decision'] = classifications
+            print(result_data)
+
+            # Save the modified DataFrame
+            if result_data is not None:
+                if save_to_excel(result_data, result_file_path):
+                # Update the last fetch timestamp to the latest timestamp in the fetched data
+                    
+                    print("File has been successfully updated.")
+                    id_list = ', '.join(map(str, data['PCE ID'].tolist()))
+
+                    # Update the timestamp in the database for the processed rows
+                    update_query = text(f"UPDATE pce.data50 SET timestamp = :timestamp WHERE `PCE ID` IN ({id_list})")
+
+                    # Execute the query with the new timestamp value and id list
+                    db.execute(update_query, {"timestamp": timestamp})
+                    db.commit()
+            else:
+                print("Failed to save in file")
+
+        # Sleep for 1 minute before the next iteration
+        await asyncio.sleep(60)
+
+# Endpoint to start the background task
+@app.post("/chat_gpt_4")
+async def start_background_task(request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    global timestamp  # Ensure you are using the global variable
+    json_data = await request.json()
+    inclusion_criteria = json_data.get("criteria", {}).get("inclusion_criteria", "")
+    exclusion_criteria = json_data.get("criteria", {}).get("exclusion_criteria", "")
+    background_tasks.add_task(background_task, db, result_file_path, inclusion_criteria,exclusion_criteria)
+    return JSONResponse(content={"success": True, "message": "Background task started."})
 
 
 
@@ -390,124 +455,3 @@ async def get_metrics(include: bool = Query(False, description="Include decision
 
 
 
-
-
-@app.get("/get_publications_by_year_and_type")
-async def get_publications_by_year_and_type(selected_years: Optional[str] = Query(None, title="Selected Years"), selected_types: Optional[str] = Query(None, title="Selected Types")):
-    try:
-        # Fetch the latest data
-        file_path = './GPT4_results.xlsx'
-        df = pd.read_excel(file_path)
-        
-
-        # Convert numeric columns to standard Python types
-        df['Publication Year'] = df['Publication Year'].astype(int)
-
-        # Filter data based on selected years and types
-        if selected_years:
-            selected_years_list = selected_years.split(',')
-            df = df[df['Publication Year'].astype(str).isin(selected_years_list)]
-
-        if selected_types:
-            selected_types_list = selected_types.split(',')
-            df = df[df['Publication Type'].astype(str).isin(selected_types_list)]
-
-        if selected_years and selected_types:
-            df = df[df['Publication Year'].astype(str).isin(selected_years_list) & df['Publication Type'].astype(str).isin(selected_types_list)]
-
-        # Get unique values for 'Publication Year' and 'Publication Type'
-        unique_years = df['Publication Year'].unique().astype(str).tolist()
-        unique_types = df['Publication Type'].unique().astype(str).tolist()
-
-        # Group data by year and count publications
-        publications_by_year = df.groupby('Publication Year').size().reset_index(name='Count')
-
-        # Convert 'Publication Year' to string before returning the data
-        publications_by_year['Publication Year'] = publications_by_year['Publication Year'].astype(str)
-
-        # Group data by type and count publications
-        publications_by_type = df.groupby('Publication Type').size().reset_index(name='Count')
-
-        return JSONResponse(content={
-            "unique_years": unique_years,
-            "unique_types": unique_types,
-            "publications_by_year": publications_by_year.to_dict(orient='records'),
-            "publications_by_type": publications_by_type.to_dict(orient='records')
-        })
-
-    except Exception as e:
-        return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
-    
-
-
-
-
-
-
-@app.get("/get_unique_values", response_class=JSONResponse)
-async def get_unique_values():
-    try:
-        df = pd.read_excel("./Gpt Test.xlsx")
-        unique_years = df["Publication Year"].unique().tolist()
-        unique_types = df["Publication Type"].unique().tolist()
-
-        return {"publicationYear": unique_years, "publicationType": unique_types}
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
-
-
-
-
-
-
-@app.get("/filtered_data", response_class=HTMLResponse)
-async def get_filtered_data(
-    publication_year: List[str] = Query(..., description="Filter by Publication Year"),
-    publication_type: List[str] = Query(..., description="Filter by Publication Type"),
-):
-    try:
-        # Apply filters
-        df = pd.read_excel("./Gpt Test.xlsx")
-        filtered_data = df
-
-        # Apply inclusive filtering logic based on selected criteria
-        if publication_year:
-            year_conditions = filtered_data["Publication Year"].isin(publication_year) | (filtered_data["Publication Year"] == "")
-            filtered_data = filtered_data[year_conditions]
-        if publication_type:
-            type_conditions = filtered_data["Publication Type"].isin(publication_type) | (filtered_data["Publication Type"] == "")
-            filtered_data = filtered_data[type_conditions]
-
-        # Log the filtered data for troubleshooting
-        print(filtered_data)
-
-        # Convert filtered data to HTML table
-        html_table = filtered_data.to_html(index=False)
-
-        # Return the HTML response
-        return HTMLResponse(content=html_table)
-
-    except Exception as e:
-        # Handle exceptions and log the error
-        print(f"An error occurred: {str(e)}")
-        return HTMLResponse(content=f"An error occurred: {str(e)}")
-    
-
-
-
-
-@app.get("/filtered_data")
-async def get_filtered_data(
-    publication_year: Optional[int] = Query(None),
-    publication_type: Optional[str] = Query(None),
-):
-    filtered_data = data
-
-    if publication_year:
-        filtered_data = [item for item in filtered_data if item["Publication_Year"] == publication_year]
-
-    if publication_type:
-        filtered_data = [item for item in filtered_data if item["Publication_Type"] == publication_type]
-
-    return filtered_data
