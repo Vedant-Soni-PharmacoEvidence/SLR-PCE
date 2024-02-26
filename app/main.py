@@ -1,19 +1,22 @@
-from fastapi import FastAPI, Request, Form,UploadFile, File, Query,HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi import FastAPI, Request, Form, UploadFile, File, Query, Depends,HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse,RedirectResponse
+from app import database as db
 from pathlib import Path
 import os
+import re
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles   
+from fastapi.staticfiles import StaticFiles
 from .jinjatemplates import templates
 from pydantic import BaseModel
 import pandas as pd
 import time
 import openai
-from typing import Optional, List
 from sklearn import metrics
 import numpy as np
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+import psycopg2
+from datetime import datetime
+import asyncio
+from openpyxl import load_workbook
 
 
 app = FastAPI() 
@@ -26,21 +29,32 @@ app.add_middleware(
 )
 
 
-DATABASE_URL = "mysql+mysqlconnector://root:root@localhost/pce"
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 
+def get_db():
+    db_conn = psycopg2.connect(host='localhost', database='PCE', user='postgres', password='root')
+    return db_conn
 
 openai.api_type = "azure"
 openai.api_base = "https://pce-aiservices600098751.openai.azure.com/"
 openai.api_version = "2023-07-01-preview"
 openai.api_key = "abe66c9c81b74e8d9a191f5a8b7932cc"
+
+
+
 #STATIC FILES
 BASE_DIR = Path(__file__).resolve().parent.parent
 static_dir = os.path.join(BASE_DIR, "static")
 app.mount("/static", StaticFiles(directory=static_dir), name="static") 
+
+
+
+
+result_file_path = "GPT4_results.xlsx"
+timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+print(timestamp)
+
 
 @app.get("/", response_class=HTMLResponse)
 def read_root(request: Request):
@@ -83,59 +97,8 @@ async def signin(request: Request, username: str = Form(...),  password: str = F
 
 
 
-@app.post("/fetch_data")
-async def fetch_data():
-    try:
-        # Connect to the database
-        db = SessionLocal()
-
-        # Execute a query to fetch data from MySQL
-        query = "SELECT * FROM pce.data50"
-        data = pd.read_sql(query, engine)
-
-        # Do something with the data (e.g., print it)
-        print(data)
-
-        return JSONResponse(content={"success": True, "data": data.to_dict(orient='records')}, status_code=200)
-
-    except Exception as e:
-        return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
-    finally:
-        # Close the database connection
-        db.close()
 
 
-@app.get("/filter")
-def get_filtered_dataframe(include: bool = Query(True), exclude: bool = Query(True)):
-    # Define the file path
-    file_path = './GPT4_results.xlsx'
-
-    # Read the Excel file into a DataFrame
-    df = pd.read_excel(file_path)
-
-    # Replace NaN values with None
-    df = df.where(pd.notna(df), None)
-
-    # Convert DataFrame types to standard Python types
-    df = df.map(lambda x: x.item() if isinstance(x, np.generic) else x)
-
-    # Convert the 'ai_decision' column to string
-    df['ai_decision'] = df['ai_decision'].astype(str)
-
-    # Condition to return unfiltered data if both Include and Exclude are selected
-    if include and exclude:
-        response_data = df.to_dict(orient='records')
-    else:
-        # Filter the DataFrame based on the decision_value
-        decision_value = 'Include' if include else 'Exclude'
-        filtered_data = df[df['ai_decision'] == decision_value]
-        # Convert the filtered data to a dictionary
-        response_data = filtered_data.to_dict(orient='records')
-
-    
-
-    # Return the JSON response
-    return JSONResponse(content=response_data)
 
 
 
@@ -192,8 +155,122 @@ async def analyse_model(model_info: ModelInfo):
 async def show_result(request:Request):
     return templates.TemplateResponse("result.html", {"request": request, "model": "GPT"})
 
-# Additional routes based on the selected model
 
+project_name= "pankaj01"
+
+
+
+@app.get("/dataupload")
+def dbdataimport():
+    try:
+        csv_file_path = "app/data/datagpt.csv"
+
+        # Read the CSV file into a DataFrame with explicit encoding
+        df = pd.read_csv(csv_file_path, encoding='ISO-8859-1')
+
+        df = df.dropna()
+        reset_query='''ALTER SEQUENCE PANKAJ01.paperid_sequence RESTART WITH 1;'''
+        db.cursor.execute(reset_query)
+        db.dbconn.commit()
+
+
+        for index, row in df.iterrows():
+            insert_query = '''
+                
+                INSERT INTO 
+                    PANKAJ01."aidecision" ("paper_id","Title", "Abstract", "PCE ID", "Decision", "Publication Year", "Publication Type", "Reason")
+                    VALUES (nextval('PANKAJ01.paperid_sequence'),%s, %s, %s, %s, %s, %s, %s)
+                
+                '''
+            db.cursor.execute(insert_query, (
+                row['Title'], row['Abstract'], row['PCE ID'], row['Decision'], row['Publication Year'],
+                row['Publication Type'], row['Reason']))
+            db.dbconn.commit()
+        db_conn = get_db()
+        # Create a cursor
+        db_cursor = db_conn.cursor()
+        
+        
+
+        update_query = f'''
+            UPDATE {project_name}.aidecision
+            SET project_id = '{project_name}';
+            
+        '''
+        db_cursor.execute(update_query)
+        db_conn.commit()
+        affected_rows = db_cursor.rowcount
+        print(f"Affected Rows: {affected_rows}")
+        return {"message": "Import successful and project assigned"}
+    
+
+    except Exception as e:
+        print(e)
+        return {"error": str(e)}
+
+@app.get("/dataflush")
+def dbdatadelete():
+    
+    try:
+
+        truncate_query = f"""
+            TRUNCATE TABLE {project_name}.aidecision RESTART IDENTITY;
+        """
+        db.cursor.execute(truncate_query)
+        db.dbconn.commit()
+
+        return {
+            "message": f"Data table truncated."
+        }
+
+    except Exception as e:
+        print(e)
+        return {"error": str(e)}
+
+
+def fetch_data_from_database():
+    db_conn = get_db()
+    db_cursor = db_conn.cursor()
+
+    fetch_query = f'''
+        SELECT "Title", "Abstract"
+        FROM {project_name}.aidecision; -- Modify the schema if needed
+    '''
+    db_cursor.execute(fetch_query)
+    rows = db_cursor.fetchall()
+
+    # Close the cursor and connection
+    db_cursor.close()
+    db_conn.close()
+
+    # Convert the result to a DataFrame
+    columns = ["Title", "Abstract"]
+    df = pd.DataFrame(rows, columns=columns)
+
+    
+
+    return df
+# Assume you have a function to update the classification result in the database
+def update_classification_in_database(title, abstract, classification):
+    db_conn = get_db()
+    db_cursor = db_conn.cursor()
+
+    title = title.replace("'", "''")  # Properly escape single quotes
+    abstract = abstract.replace("'", "''")  # Properly escape single quotes
+
+    update_query = f'''
+        UPDATE {project_name}.aidecision
+        SET ai_decision = '{classification}'
+        WHERE "Title" = '{title}' AND "Abstract" = '{abstract}'; -- Modify the schema if needed
+    '''
+    db_cursor.execute(update_query)
+
+    db_conn.commit()
+
+    db_cursor.close()
+    db_conn.close()
+
+# Your FastAPI endpoint
 @app.post("/chat_gpt_4")
 async def analyse_gpt(request: Request):
     try:
@@ -201,33 +278,30 @@ async def analyse_gpt(request: Request):
         inclusion_criteria = json_data.get("criteria", {}).get("inclusion_criteria", "")
         exclusion_criteria = json_data.get("criteria", {}).get("exclusion_criteria", "")
 
-        data = pd.read_excel(uploaded_file_path)
-       
+        # Fetch Title and Abstract from the database
+        df = fetch_data_from_database()
+        
 
-        titles = []
-        abstracts = []
-        classifications = []
-
-        for index, row in data.iterrows():
+        for index, row in df.iterrows():
             Title = row['Title']
             Abstract = row['Abstract']
 
             message_text = {
                 "role": "system",
                 "content": f'''
-                     Based on the below exclusion and inclusion criteria, please classify the given Citation as "Included" or "Excluded".
-                     Apply the Exclusion Criteria first. If any statement in the Exclusion Criteria is true, mark the citation as "Excluded".
-                     If the citation passes the Exclusion Criteria, then check the Inclusion Criteria. Mark the Citation as "Included" only if it strictly and exactly passes all Inclusion Criteria statements; otherwise, mark the citation as "Excluded".
-                     Inclusion Criteria:
-                     {inclusion_criteria}
-                     Exclusion Criteria:
-                     {exclusion_criteria}
-                 
-                     Title: {Title}
-                     Abstract: {Abstract}
+                    Based on the below exclusion and inclusion criteria, please classify the given Citation as "Included" or "Excluded".
+                    Apply the Exclusion Criteria first. If any statement in the Exclusion Criteria is true, mark the citation as "Excluded".
+                    If the citation passes the Exclusion Criteria, then check the Inclusion Criteria. Mark the Citation as "Included" only if it strictly and exactly passes all Inclusion Criteria statements; otherwise, mark the citation as "Excluded".
+                    Inclusion Criteria:
+                    {inclusion_criteria}
+                    Exclusion Criteria:
+                    {exclusion_criteria}
+
+                    Title: {Title}
+                    Abstract: {Abstract}
                 '''
             }
-            
+
             completion = openai.ChatCompletion.create(
                 engine="GPT-4",
                 messages=[message_text],
@@ -241,52 +315,21 @@ async def analyse_gpt(request: Request):
 
             response_text = completion.choices[0].message['content']
 
+            
             if "included" in response_text.lower():
                 classification = "Include"
             else:
-                classification = "Exclude"  # Placeholder for manual verification
+                classification = "Exclude"
 
-            titles.append(Title)
-            abstracts.append(Abstract)
-            classifications.append(classification)
+            # Print the classification for debugging
+            print(f"Classification for Title: {Title}, Abstract: {Abstract} - {classification}")
 
-        # Create a copy of the original DataFrame
-        result_data = data.copy()
+            # Update classification in the database
+            update_classification_in_database(Title, Abstract, classification)
 
-        # Add the 'ai_decision' column to the copied DataFrame
-        result_data['ai_decision'] = classifications
+           
 
-        # Save the modified DataFrame
-        if result_data is not None:
-            global result_file_path
-            result_file_path = "GPT4_results.xlsx"
-
-            try:
-                # Save the DataFrame to Excel
-                result_data.to_excel(result_file_path, index=False)
-
-                # Print a success message
-                print("File has been successfully updated.")
-
-                # Return JSON response with success and file path
-                response_content = {"success": True, "result_file_path": result_file_path}
-                return JSONResponse(content=response_content), RedirectResponse(url="/dashboard")
-
-            except Exception as e:
-                # Print an error message
-                print(f"Error saving file: {str(e)}")
-
-                # Return JSON response with error
-                response_content = {"success": False, "error": f"Error saving file: {str(e)}"}
-                return JSONResponse(content=response_content, status_code=500)
-
-        else:
-            # Print an error message
-            print("Failed to save in file")
-
-            # Return JSON response with error
-            response_content = {"success": False, "error": "Failed to save in file"}
-            return JSONResponse(content=response_content, status_code=500)
+        # Continue with the rest of your code...
 
     except Exception as e:
         # Print an error message
@@ -294,6 +337,11 @@ async def analyse_gpt(request: Request):
 
         # Return JSON response with error
         return JSONResponse(content={"success": False, "error": f"Error processing request: {str(e)}"}, status_code=500)
+
+
+
+
+
 
 
 
@@ -387,127 +435,34 @@ async def get_metrics(include: bool = Query(False, description="Include decision
     except Exception as e:        
         return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
 
+@app.get("/filter")
+def get_filtered_dataframe(include: bool = Query(True), exclude: bool = Query(True)):
+    # Define the file path
+    file_path = './GPT4_results.xlsx'
+
+
+    df = pd.read_excel(file_path)
+
+
+    df = df.where(pd.notna(df), None)
+
+
+    df = df.map(lambda x: pd.to_datetime(x).to_pydatetime() if isinstance(x, pd.Timestamp) else x)
+
+
+    df['ai_decision'] = df['ai_decision'].astype(str)
+
+
+    if include and exclude:
+        response_data = df.to_dict(orient='records')
+    else:
+
+        decision_value = 'Include' if include else 'Exclude'
+        filtered_data = df[df['ai_decision'] == decision_value]
+
+        response_data = filtered_data.to_dict(orient='records')
+
+    return JSONResponse(content=response_data)
 
 
 
-
-
-@app.get("/get_publications_by_year_and_type")
-async def get_publications_by_year_and_type(selected_years: Optional[str] = Query(None, title="Selected Years"), selected_types: Optional[str] = Query(None, title="Selected Types")):
-    try:
-        # Fetch the latest data
-        file_path = './GPT4_results.xlsx'
-        df = pd.read_excel(file_path)
-        
-
-        # Convert numeric columns to standard Python types
-        df['Publication Year'] = df['Publication Year'].astype(int)
-
-        # Filter data based on selected years and types
-        if selected_years:
-            selected_years_list = selected_years.split(',')
-            df = df[df['Publication Year'].astype(str).isin(selected_years_list)]
-
-        if selected_types:
-            selected_types_list = selected_types.split(',')
-            df = df[df['Publication Type'].astype(str).isin(selected_types_list)]
-
-        if selected_years and selected_types:
-            df = df[df['Publication Year'].astype(str).isin(selected_years_list) & df['Publication Type'].astype(str).isin(selected_types_list)]
-
-        # Get unique values for 'Publication Year' and 'Publication Type'
-        unique_years = df['Publication Year'].unique().astype(str).tolist()
-        unique_types = df['Publication Type'].unique().astype(str).tolist()
-
-        # Group data by year and count publications
-        publications_by_year = df.groupby('Publication Year').size().reset_index(name='Count')
-
-        # Convert 'Publication Year' to string before returning the data
-        publications_by_year['Publication Year'] = publications_by_year['Publication Year'].astype(str)
-
-        # Group data by type and count publications
-        publications_by_type = df.groupby('Publication Type').size().reset_index(name='Count')
-
-        return JSONResponse(content={
-            "unique_years": unique_years,
-            "unique_types": unique_types,
-            "publications_by_year": publications_by_year.to_dict(orient='records'),
-            "publications_by_type": publications_by_type.to_dict(orient='records')
-        })
-
-    except Exception as e:
-        return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
-    
-
-
-
-
-
-
-@app.get("/get_unique_values", response_class=JSONResponse)
-async def get_unique_values():
-    try:
-        df = pd.read_excel("./Gpt Test.xlsx")
-        unique_years = df["Publication Year"].unique().tolist()
-        unique_types = df["Publication Type"].unique().tolist()
-
-        return {"publicationYear": unique_years, "publicationType": unique_types}
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
-
-
-
-
-
-
-@app.get("/filtered_data", response_class=HTMLResponse)
-async def get_filtered_data(
-    publication_year: List[str] = Query(..., description="Filter by Publication Year"),
-    publication_type: List[str] = Query(..., description="Filter by Publication Type"),
-):
-    try:
-        # Apply filters
-        df = pd.read_excel("./Gpt Test.xlsx")
-        filtered_data = df
-
-        # Apply inclusive filtering logic based on selected criteria
-        if publication_year:
-            year_conditions = filtered_data["Publication Year"].isin(publication_year) | (filtered_data["Publication Year"] == "")
-            filtered_data = filtered_data[year_conditions]
-        if publication_type:
-            type_conditions = filtered_data["Publication Type"].isin(publication_type) | (filtered_data["Publication Type"] == "")
-            filtered_data = filtered_data[type_conditions]
-
-        # Log the filtered data for troubleshooting
-        print(filtered_data)
-
-        # Convert filtered data to HTML table
-        html_table = filtered_data.to_html(index=False)
-
-        # Return the HTML response
-        return HTMLResponse(content=html_table)
-
-    except Exception as e:
-        # Handle exceptions and log the error
-        print(f"An error occurred: {str(e)}")
-        return HTMLResponse(content=f"An error occurred: {str(e)}")
-    
-
-
-
-
-@app.get("/filtered_data")
-async def get_filtered_data(
-    publication_year: Optional[int] = Query(None),
-    publication_type: Optional[str] = Query(None),
-):
-    filtered_data = data
-
-    if publication_year:
-        filtered_data = [item for item in filtered_data if item["Publication_Year"] == publication_year]
-
-    if publication_type:
-        filtered_data = [item for item in filtered_data if item["Publication_Type"] == publication_type]
-
-    return filtered_data
