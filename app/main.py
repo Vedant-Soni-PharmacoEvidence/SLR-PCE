@@ -247,7 +247,7 @@ def fetch_data_from_database():
     columns = ["Title", "Abstract"]
     df = pd.DataFrame(rows, columns=columns)
 
-    print(df)
+    
 
     return df
 # Assume you have a function to update the classification result in the database
@@ -280,7 +280,7 @@ async def analyse_gpt(request: Request):
 
         # Fetch Title and Abstract from the database
         df = fetch_data_from_database()
-        print(df)
+        
 
         for index, row in df.iterrows():
             Title = row['Title']
