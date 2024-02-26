@@ -158,32 +158,7 @@ async def show_result(request:Request):
 
 project_name= "pankaj01"
 
-@app.get("/update_project_id")
-async def update_project_id():
-    try:
-        # Get the database connection
-        db_conn = get_db()
-        # Create a cursor
-        db_cursor = db_conn.cursor()
 
-        # Execute the UPDATE statement
-        
-
-
-        # Commit the changes
-        
-
-        return {"message": "Project ID updated successfully"}
-
-    except Exception as e:
-        # Handle exceptions and rollback in case of an error
-        db_conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
-
-    finally:
-        # Close the cursor and connection in the finally block
-        db_cursor.close()
-        db_conn.close()
 
 @app.get("/dataupload")
 def dbdataimport():
@@ -235,41 +210,17 @@ def dbdataimport():
 
 @app.get("/dataflush")
 def dbdatadelete():
-     # Check if the import table is not empty
-    # check_import_empty_query = """
-    #     SELECT COUNT(*) FROM PANKAJ01.import;
-    #     """
-    # db.cursor.execute(check_import_empty_query)
-    # import_table_count = db.cursor.fetchone()[0]
-    # print(f"the count is {import_table_count}")
+    
     try:
-        
-       
 
-        
-        # Create a timestamp-based table name for the copy
-
-        # Insert data into aidecision and handle conflicts by updating existing rows
-        insert_into_aidecision_query = """
-        INSERT INTO PANKAJ01.aidecision
-        SELECT * FROM PANKAJ01.import;
-        --ON CONFLICT ("PAPERID") 
-        --DO NOTHING;
-        """
-        db.cursor.execute(insert_into_aidecision_query)
-        db.dbconn.commit()
-        
-        
-
-        # Truncate the original table
-        truncate_query = """
-            TRUNCATE TABLE PANKAJ01.import RESTART IDENTITY;
+        truncate_query = f"""
+            TRUNCATE TABLE {project_name}.aidecision RESTART IDENTITY;
         """
         db.cursor.execute(truncate_query)
         db.dbconn.commit()
 
         return {
-            "message": f"Data copied to aidecision, original table truncated, and existing data in aidecision updated."
+            "message": f"Data table truncated."
         }
 
     except Exception as e:
@@ -277,8 +228,49 @@ def dbdatadelete():
         return {"error": str(e)}
 
 
+def fetch_data_from_database():
+    db_conn = get_db()
+    db_cursor = db_conn.cursor()
 
-# Background task to fetch and process data
+    fetch_query = f'''
+        SELECT "Title", "Abstract"
+        FROM {project_name}.aidecision; -- Modify the schema if needed
+    '''
+    db_cursor.execute(fetch_query)
+    rows = db_cursor.fetchall()
+
+    # Close the cursor and connection
+    db_cursor.close()
+    db_conn.close()
+
+    # Convert the result to a DataFrame
+    columns = ["Title", "Abstract"]
+    df = pd.DataFrame(rows, columns=columns)
+
+    
+
+    return df
+# Assume you have a function to update the classification result in the database
+def update_classification_in_database(title, abstract, classification):
+    db_conn = get_db()
+    db_cursor = db_conn.cursor()
+
+    title = title.replace("'", "''")  # Properly escape single quotes
+    abstract = abstract.replace("'", "''")  # Properly escape single quotes
+
+    update_query = f'''
+        UPDATE {project_name}.aidecision
+        SET ai_decision = '{classification}'
+        WHERE "Title" = '{title}' AND "Abstract" = '{abstract}'; -- Modify the schema if needed
+    '''
+    db_cursor.execute(update_query)
+
+    db_conn.commit()
+
+    db_cursor.close()
+    db_conn.close()
+
+# Your FastAPI endpoint
 @app.post("/chat_gpt_4")
 async def analyse_gpt(request: Request):
     try:
@@ -286,92 +278,58 @@ async def analyse_gpt(request: Request):
         inclusion_criteria = json_data.get("criteria", {}).get("inclusion_criteria", "")
         exclusion_criteria = json_data.get("criteria", {}).get("exclusion_criteria", "")
 
-        data = pd.read_excel(uploaded_file_path)
-       
+        # Fetch Title and Abstract from the database
+        df = fetch_data_from_database()
+        
 
-        titles = []
-        abstracts = []
-        classifications = []
+        for index, row in df.iterrows():
+            Title = row['Title']
+            Abstract = row['Abstract']
 
-        for index, row in data.iterrows():
-                Title = row['Title']
-                Abstract = row['Abstract']
+            message_text = {
+                "role": "system",
+                "content": f'''
+                    Based on the below exclusion and inclusion criteria, please classify the given Citation as "Included" or "Excluded".
+                    Apply the Exclusion Criteria first. If any statement in the Exclusion Criteria is true, mark the citation as "Excluded".
+                    If the citation passes the Exclusion Criteria, then check the Inclusion Criteria. Mark the Citation as "Included" only if it strictly and exactly passes all Inclusion Criteria statements; otherwise, mark the citation as "Excluded".
+                    Inclusion Criteria:
+                    {inclusion_criteria}
+                    Exclusion Criteria:
+                    {exclusion_criteria}
 
-                message_text = {
-                    "role": "system",
-                    "content": f'''
-                         Based on the below exclusion and inclusion criteria, please classify the given Citation as "Included" or "Excluded".
-                         Apply the Exclusion Criteria first. If any statement in the Exclusion Criteria is true, mark the citation as "Excluded".
-                         If the citation passes the Exclusion Criteria, then check the Inclusion Criteria. Mark the Citation as "Included" only if it strictly and exactly passes all Inclusion Criteria statements; otherwise, mark the citation as "Excluded".
-                         Inclusion Criteria:
-                         {inclusion_criteria}
-                         Exclusion Criteria:
-                         {exclusion_criteria}
+                    Title: {Title}
+                    Abstract: {Abstract}
+                '''
+            }
 
-                         Title: {Title}
-                         Abstract: {Abstract}
-                    '''
-                }
+            completion = openai.ChatCompletion.create(
+                engine="GPT-4",
+                messages=[message_text],
+                temperature=0.2,
+                max_tokens=800,
+                top_p=0.95,
+                frequency_penalty=0,
+                presence_penalty=0,
+                stop=None
+            )
 
-                completion = openai.ChatCompletion.create(
-                    engine="GPT-4",
-                    messages=[message_text],
-                    temperature=0.2,
-                    max_tokens=800,
-                    top_p=0.95,
-                    frequency_penalty=0,
-                    presence_penalty=0,
-                    stop=None
-                )
+            response_text = completion.choices[0].message['content']
 
-                response_text = completion.choices[0].message['content']
+            
+            if "included" in response_text.lower():
+                classification = "Include"
+            else:
+                classification = "Exclude"
 
-                if "included" in response_text.lower():
-                    classification = "Include"
-                else:
-                    classification = "Exclude"  # Placeholder for manual verification
+            # Print the classification for debugging
+            print(f"Classification for Title: {Title}, Abstract: {Abstract} - {classification}")
 
-                    titles.append(Title)
-                    abstracts.append(Abstract)
-                    classifications.append(classification)
+            # Update classification in the database
+            update_classification_in_database(Title, Abstract, classification)
 
-                    # Create a copy of the original DataFrame
-                    result_data = data.copy()
+           
 
-                    # Add the 'ai_decision' column to the copied DataFrame
-                    result_data['ai_decision'] = classifications
-
-                # Save the modified DataFrame
-                if result_data is not None:
-                    global result_file_path
-                    result_file_path = "GPT4_results.xlsx"
-
-                    try:
-                        # Save the DataFrame to Excel
-                        result_data.to_excel(result_file_path, index=False)
-
-                        # Print a success message
-                        print("File has been successfully updated.")
-
-                        # Return JSON response with success and file path
-                        response_content = {"success": True, "result_file_path": result_file_path}
-                        return JSONResponse(content=response_content), RedirectResponse(url="/dashboard")
-
-                    except Exception as e:
-                        # Print an error message
-                        print(f"Error saving file: {str(e)}")
-
-                        # Return JSON response with error
-                        response_content = {"success": False, "error": f"Error saving file: {str(e)}"}
-                        return JSONResponse(content=response_content, status_code=500)
-
-                else:
-                    # Print an error message
-                    print("Failed to save in file")
-
-                    # Return JSON response with error
-                    response_content = {"success": False, "error": "Failed to save in file"}
-                    return JSONResponse(content=response_content, status_code=500)
+        # Continue with the rest of your code...
 
     except Exception as e:
         # Print an error message
@@ -379,6 +337,7 @@ async def analyse_gpt(request: Request):
 
         # Return JSON response with error
         return JSONResponse(content={"success": False, "error": f"Error processing request: {str(e)}"}, status_code=500)
+
 
 
 
