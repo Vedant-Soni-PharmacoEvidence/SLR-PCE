@@ -1,22 +1,20 @@
-from fastapi import FastAPI, Request, Form,UploadFile, File, Query,HTTPException, Depends,BackgroundTasks
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi import FastAPI, Request, Form, UploadFile, File, Query, Depends,HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse,RedirectResponse
+from app import database as db
 from pathlib import Path
 import os
+import re
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles   
+from fastapi.staticfiles import StaticFiles
 from .jinjatemplates import templates
 from pydantic import BaseModel
 import pandas as pd
 import time
 import openai
-from typing import Optional, List
 from sklearn import metrics
 import numpy as np
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import text
-from datetime import datetime, timedelta
+import psycopg2
+from datetime import datetime
 import asyncio
 from openpyxl import load_workbook
 
@@ -31,12 +29,12 @@ app.add_middleware(
 )
 
 
-DATABASE_URL = "mysql+mysqlconnector://root:root@localhost/pce"
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 
+def get_db():
+    db_conn = psycopg2.connect(host='localhost', database='PCE', user='postgres', password='root')
+    return db_conn
 
 openai.api_type = "azure"
 openai.api_base = "https://pce-aiservices600098751.openai.azure.com/"
@@ -51,12 +49,6 @@ static_dir = os.path.join(BASE_DIR, "static")
 app.mount("/static", StaticFiles(directory=static_dir), name="static") 
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 result_file_path = "GPT4_results.xlsx"
@@ -105,53 +97,8 @@ async def signin(request: Request, username: str = Form(...),  password: str = F
 
 
 
-@app.get("/fetch_data")
-async def fetch_data(db: Session = Depends(get_db)):
-    try:
-        # Execute a query to fetch data from MySQL
-        query = "SELECT * FROM pce.data50"
-        data = pd.read_sql(query, engine)
-
-        # Do something with the data (e.g., print it)
-        print(data)
-
-        return JSONResponse(content={"success": True, "data": data.to_dict(orient='records')}, status_code=200)
-
-    except Exception as e:
-        # Log the error for debugging
-        print(f"Error: {str(e)}")
-        return JSONResponse(content={"success": False, "error": "Internal Server Error"}, status_code=500)
 
 
-@app.get("/filter")
-def get_filtered_dataframe(include: bool = Query(True), exclude: bool = Query(True)):
-    # Define the file path
-    file_path = './GPT4_results.xlsx'
-
-    # Read the Excel file into a DataFrame
-    df = pd.read_excel(file_path)
-
-    # Replace NaN or NaT values with None
-    df = df.where(pd.notna(df), None)
-
-    # Convert Timestamp objects to standard Python datetime objects
-    df = df.map(lambda x: pd.to_datetime(x).to_pydatetime() if isinstance(x, pd.Timestamp) else x)
-
-    # Convert the 'ai_decision' column to string
-    df['ai_decision'] = df['ai_decision'].astype(str)
-
-    # Condition to return unfiltered data if both Include and Exclude are selected
-    if include and exclude:
-        response_data = df.to_dict(orient='records')
-    else:
-        # Filter the DataFrame based on the decision_value
-        decision_value = 'Include' if include else 'Exclude'
-        filtered_data = df[df['ai_decision'] == decision_value]
-        # Convert the filtered data to a dictionary
-        response_data = filtered_data.to_dict(orient='records')
-
-    # Return the JSON response
-    return JSONResponse(content=response_data)
 
 
 
@@ -208,79 +155,145 @@ async def analyse_model(model_info: ModelInfo):
 async def show_result(request:Request):
     return templates.TemplateResponse("result.html", {"request": request, "model": "GPT"})
 
-# Additional routes based on the selected model
 
+project_name= "pankaj01"
 
-
-
-
-
-
-
-
-
-
-
-
-# Function to fetch data from the database
-def fetch_data_from_db(timestamp: str, db: Session):
-    query = f"SELECT * FROM pce.data50 WHERE timestamp < '{timestamp}' LIMIT 10"
-    data = pd.read_sql(query, engine)
-    return data
-
-# Function to save DataFrame to Excel
-def save_to_excel(result_data, file_path):
+@app.get("/update_project_id")
+async def update_project_id():
     try:
-        # Check if the file exists
-        file_exists = Path(file_path).exists()
+        # Get the database connection
+        db_conn = get_db()
+        # Create a cursor
+        db_cursor = db_conn.cursor()
 
-        if file_exists:
-            # Load the existing workbook
-            wb = load_workbook(file_path)
+        # Execute the UPDATE statement
+        
 
-            # Get the active sheet
-            sheet = wb.active
 
-            # Append data to the existing sheet or create a new one
-            offset = 0 if file_exists else 1
+        # Commit the changes
+        
 
-            # If it's a new sheet, write the headers first
-            if offset == 1:
-                sheet.append(result_data.columns.tolist())
+        return {"message": "Project ID updated successfully"}
 
-            # Append data rows
-            for row in result_data.iterrows():
-                sheet.append(row[1].tolist())
-
-            # Save the workbook
-            wb.save(file_path)
-        else:
-            # Create a new Excel file
-            result_data.to_excel(file_path, index=False)
-
-        return True
     except Exception as e:
-        print(f"Error saving file: {str(e)}")
-        return False
+        # Handle exceptions and rollback in case of an error
+        db_conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+    finally:
+        # Close the cursor and connection in the finally block
+        db_cursor.close()
+        db_conn.close()
+
+@app.get("/dataupload")
+def dbdataimport():
+    try:
+        csv_file_path = "app/data/datagpt.csv"
+
+        # Read the CSV file into a DataFrame with explicit encoding
+        df = pd.read_csv(csv_file_path, encoding='ISO-8859-1')
+
+        df = df.dropna()
+        reset_query='''ALTER SEQUENCE PANKAJ01.paperid_sequence RESTART WITH 1;'''
+        db.cursor.execute(reset_query)
+        db.dbconn.commit()
+
+
+        for index, row in df.iterrows():
+            insert_query = '''
+                
+                INSERT INTO 
+                    PANKAJ01."aidecision" ("paper_id","Title", "Abstract", "PCE ID", "Decision", "Publication Year", "Publication Type", "Reason")
+                    VALUES (nextval('PANKAJ01.paperid_sequence'),%s, %s, %s, %s, %s, %s, %s)
+                
+                '''
+            db.cursor.execute(insert_query, (
+                row['Title'], row['Abstract'], row['PCE ID'], row['Decision'], row['Publication Year'],
+                row['Publication Type'], row['Reason']))
+            db.dbconn.commit()
+        db_conn = get_db()
+        # Create a cursor
+        db_cursor = db_conn.cursor()
+        
+        
+
+        update_query = f'''
+            UPDATE {project_name}.aidecision
+            SET project_id = '{project_name}';
+            
+        '''
+        db_cursor.execute(update_query)
+        db_conn.commit()
+        affected_rows = db_cursor.rowcount
+        print(f"Affected Rows: {affected_rows}")
+        return {"message": "Import successful and project assigned"}
+    
+
+    except Exception as e:
+        print(e)
+        return {"error": str(e)}
+
+@app.get("/dataflush")
+def dbdatadelete():
+     # Check if the import table is not empty
+    # check_import_empty_query = """
+    #     SELECT COUNT(*) FROM PANKAJ01.import;
+    #     """
+    # db.cursor.execute(check_import_empty_query)
+    # import_table_count = db.cursor.fetchone()[0]
+    # print(f"the count is {import_table_count}")
+    try:
+        
+       
+
+        
+        # Create a timestamp-based table name for the copy
+
+        # Insert data into aidecision and handle conflicts by updating existing rows
+        insert_into_aidecision_query = """
+        INSERT INTO PANKAJ01.aidecision
+        SELECT * FROM PANKAJ01.import;
+        --ON CONFLICT ("PAPERID") 
+        --DO NOTHING;
+        """
+        db.cursor.execute(insert_into_aidecision_query)
+        db.dbconn.commit()
+        
+        
+
+        # Truncate the original table
+        truncate_query = """
+            TRUNCATE TABLE PANKAJ01.import RESTART IDENTITY;
+        """
+        db.cursor.execute(truncate_query)
+        db.dbconn.commit()
+
+        return {
+            "message": f"Data copied to aidecision, original table truncated, and existing data in aidecision updated."
+        }
+
+    except Exception as e:
+        print(e)
+        return {"error": str(e)}
+
+
 
 # Background task to fetch and process data
-async def background_task(db: Session, result_file_path: str, inclusion_criteria: str, exclusion_criteria: str):
-    while True:
-        global timestamp
-        print (timestamp)
-        # Fetch data from the database based on time interval
-        data = fetch_data_from_db(timestamp, db)
-        print(data)
-        # json_data = await request.json()
-        # inclusion_criteria = json_data.get("criteria", {}).get("inclusion_criteria", "")
-        # exclusion_criteria = json_data.get("criteria", {}).get("exclusion_criteria", "")
+@app.post("/chat_gpt_4")
+async def analyse_gpt(request: Request):
+    try:
+        json_data = await request.json()
+        inclusion_criteria = json_data.get("criteria", {}).get("inclusion_criteria", "")
+        exclusion_criteria = json_data.get("criteria", {}).get("exclusion_criteria", "")
 
-        if not data.empty:
-            titles = []
-            abstracts = []
-            classifications = []
+        data = pd.read_excel(uploaded_file_path)
+       
 
-            for index, row in data.iterrows():
+        titles = []
+        abstracts = []
+        classifications = []
+
+        for index, row in data.iterrows():
                 Title = row['Title']
                 Abstract = row['Abstract']
 
@@ -318,47 +331,58 @@ async def background_task(db: Session, result_file_path: str, inclusion_criteria
                 else:
                     classification = "Exclude"  # Placeholder for manual verification
 
-                titles.append(Title)
-                abstracts.append(Abstract)
-                classifications.append(classification)
+                    titles.append(Title)
+                    abstracts.append(Abstract)
+                    classifications.append(classification)
 
-            # Create a copy of the original DataFrame
-            result_data = data.copy()
-            result_data = result_data.drop(columns=['timestamp'])
+                    # Create a copy of the original DataFrame
+                    result_data = data.copy()
 
-            # Add the 'ai_decision' column to the copied DataFrame
-            result_data['ai_decision'] = classifications
-            print(result_data)
+                    # Add the 'ai_decision' column to the copied DataFrame
+                    result_data['ai_decision'] = classifications
 
-            # Save the modified DataFrame
-            if result_data is not None:
-                if save_to_excel(result_data, result_file_path):
-                # Update the last fetch timestamp to the latest timestamp in the fetched data
-                    
-                    print("File has been successfully updated.")
-                    id_list = ', '.join(map(str, data['PCE ID'].tolist()))
+                # Save the modified DataFrame
+                if result_data is not None:
+                    global result_file_path
+                    result_file_path = "GPT4_results.xlsx"
 
-                    # Update the timestamp in the database for the processed rows
-                    update_query = text(f"UPDATE pce.data50 SET timestamp = :timestamp WHERE `PCE ID` IN ({id_list})")
+                    try:
+                        # Save the DataFrame to Excel
+                        result_data.to_excel(result_file_path, index=False)
 
-                    # Execute the query with the new timestamp value and id list
-                    db.execute(update_query, {"timestamp": timestamp})
-                    db.commit()
-            else:
-                print("Failed to save in file")
+                        # Print a success message
+                        print("File has been successfully updated.")
 
-        # Sleep for 1 minute before the next iteration
-        await asyncio.sleep(60)
+                        # Return JSON response with success and file path
+                        response_content = {"success": True, "result_file_path": result_file_path}
+                        return JSONResponse(content=response_content), RedirectResponse(url="/dashboard")
 
-# Endpoint to start the background task
-@app.post("/chat_gpt_4")
-async def start_background_task(request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    global timestamp  # Ensure you are using the global variable
-    json_data = await request.json()
-    inclusion_criteria = json_data.get("criteria", {}).get("inclusion_criteria", "")
-    exclusion_criteria = json_data.get("criteria", {}).get("exclusion_criteria", "")
-    background_tasks.add_task(background_task, db, result_file_path, inclusion_criteria,exclusion_criteria)
-    return JSONResponse(content={"success": True, "message": "Background task started."})
+                    except Exception as e:
+                        # Print an error message
+                        print(f"Error saving file: {str(e)}")
+
+                        # Return JSON response with error
+                        response_content = {"success": False, "error": f"Error saving file: {str(e)}"}
+                        return JSONResponse(content=response_content, status_code=500)
+
+                else:
+                    # Print an error message
+                    print("Failed to save in file")
+
+                    # Return JSON response with error
+                    response_content = {"success": False, "error": "Failed to save in file"}
+                    return JSONResponse(content=response_content, status_code=500)
+
+    except Exception as e:
+        # Print an error message
+        print(f"Error processing request: {str(e)}")
+
+        # Return JSON response with error
+        return JSONResponse(content={"success": False, "error": f"Error processing request: {str(e)}"}, status_code=500)
+
+
+
+
 
 
 
@@ -452,6 +476,34 @@ async def get_metrics(include: bool = Query(False, description="Include decision
     except Exception as e:        
         return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
 
+@app.get("/filter")
+def get_filtered_dataframe(include: bool = Query(True), exclude: bool = Query(True)):
+    # Define the file path
+    file_path = './GPT4_results.xlsx'
+
+
+    df = pd.read_excel(file_path)
+
+
+    df = df.where(pd.notna(df), None)
+
+
+    df = df.map(lambda x: pd.to_datetime(x).to_pydatetime() if isinstance(x, pd.Timestamp) else x)
+
+
+    df['ai_decision'] = df['ai_decision'].astype(str)
+
+
+    if include and exclude:
+        response_data = df.to_dict(orient='records')
+    else:
+
+        decision_value = 'Include' if include else 'Exclude'
+        filtered_data = df[df['ai_decision'] == decision_value]
+
+        response_data = filtered_data.to_dict(orient='records')
+
+    return JSONResponse(content=response_data)
 
 
 
