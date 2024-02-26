@@ -233,7 +233,7 @@ def fetch_data_from_database():
     db_cursor = db_conn.cursor()
 
     fetch_query = f'''
-        SELECT "Title", "Abstract"
+        SELECT "Title", "Abstract","Publication Year","Publication Type","Reason","Decision", "ai_decision"
         FROM {project_name}.aidecision; -- Modify the schema if needed
     '''
     db_cursor.execute(fetch_query)
@@ -244,10 +244,10 @@ def fetch_data_from_database():
     db_conn.close()
 
     # Convert the result to a DataFrame
-    columns = ["Title", "Abstract"]
+    columns = ["Title", "Abstract","Publication Year","Publication Type","Reason","Decision","ai_decision"]
     df = pd.DataFrame(rows, columns=columns)
 
-    
+    # print(df)
 
     return df
 # Assume you have a function to update the classification result in the database
@@ -369,8 +369,8 @@ async def analyse_google():
 @app.get("/get_metrics")
 async def get_metrics(include: bool = Query(False, description="Include decision metrics")):
     try:
-        file_path = './GPT4_results.xlsx'
-        df = pd.read_excel(file_path)
+        
+        df = fetch_data_from_database()
         
         # Extract 'Decision' and 'ai_decision' columns
         actual_values = df['Decision']
@@ -438,10 +438,10 @@ async def get_metrics(include: bool = Query(False, description="Include decision
 @app.get("/filter")
 def get_filtered_dataframe(include: bool = Query(True), exclude: bool = Query(True)):
     # Define the file path
-    file_path = './GPT4_results.xlsx'
+    
 
 
-    df = pd.read_excel(file_path)
+    df = fetch_data_from_database()
 
 
     df = df.where(pd.notna(df), None)
