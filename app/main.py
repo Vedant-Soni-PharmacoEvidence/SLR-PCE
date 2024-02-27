@@ -169,17 +169,17 @@ def dbdataimport():
         df = pd.read_csv(csv_file_path, encoding='ISO-8859-1')
 
         df = df.dropna()
-        reset_query='''ALTER SEQUENCE PANKAJ01.paperid_sequence RESTART WITH 1;'''
+        reset_query=f'''ALTER SEQUENCE {project_name}.paperid_sequence RESTART WITH 1;'''
         db.cursor.execute(reset_query)
         db.dbconn.commit()
 
 
         for index, row in df.iterrows():
-            insert_query = '''
+            insert_query = f'''
                 
                 INSERT INTO 
-                    PANKAJ01."aidecision" ("paper_id","Title", "Abstract", "PCE ID", "Decision", "Publication Year", "Publication Type", "Reason")
-                    VALUES (nextval('PANKAJ01.paperid_sequence'),%s, %s, %s, %s, %s, %s, %s)
+                    {project_name}."aidecision" ("paper_id","Title", "Abstract", "PCE ID", "Decision", "Publication Year", "Publication Type", "Reason")
+                    VALUES (nextval('{project_name}.paperid_sequence'),%s, %s, %s, %s, %s, %s, %s)
                 
                 '''
             db.cursor.execute(insert_query, (
@@ -228,12 +228,19 @@ def dbdatadelete():
         return {"error": str(e)}
 
 
+
+
+# Define a rate limit for processing entries per minute
+entries_per_minute_limit = 5
+
+
+# Fetch data from the database
 def fetch_data_from_database():
     db_conn = get_db()
     db_cursor = db_conn.cursor()
 
     fetch_query = f'''
-        SELECT "Title", "Abstract","Publication Year","Publication Type","Reason","Decision", "ai_decision"
+        SELECT "paper_id", "Title", "Abstract", "Publication Year", "Publication Type", "Reason", "Decision", "ai_decision"
         FROM {project_name}.aidecision; -- Modify the schema if needed
     '''
     db_cursor.execute(fetch_query)
@@ -244,14 +251,15 @@ def fetch_data_from_database():
     db_conn.close()
 
     # Convert the result to a DataFrame
-    columns = ["Title", "Abstract","Publication Year","Publication Type","Reason","Decision","ai_decision"]
+    columns = ["paper_id", "Title", "Abstract", "Publication Year", "Publication Type", "Reason", "Decision", "ai_decision"]
     df = pd.DataFrame(rows, columns=columns)
 
-    # print(df)
-
     return df
+
+
+
 # Assume you have a function to update the classification result in the database
-def update_classification_in_database(title, abstract, classification):
+def update_classification_in_database(paper_id, title, abstract, classification):
     db_conn = get_db()
     db_cursor = db_conn.cursor()
 
@@ -261,7 +269,7 @@ def update_classification_in_database(title, abstract, classification):
     update_query = f'''
         UPDATE {project_name}.aidecision
         SET ai_decision = '{classification}'
-        WHERE "Title" = '{title}' AND "Abstract" = '{abstract}'; -- Modify the schema if needed
+        WHERE "paper_id" = {paper_id} AND "Title" = '{title}' AND "Abstract" = '{abstract}'; -- Modify the schema if needed
     '''
     db_cursor.execute(update_query)
 
@@ -270,64 +278,31 @@ def update_classification_in_database(title, abstract, classification):
     db_cursor.close()
     db_conn.close()
 
+
+
+
 # Your FastAPI endpoint
 @app.post("/chat_gpt_4")
 async def analyse_gpt(request: Request):
     try:
         json_data = await request.json()
+
         inclusion_criteria = json_data.get("criteria", {}).get("inclusion_criteria", "")
         exclusion_criteria = json_data.get("criteria", {}).get("exclusion_criteria", "")
+        last_processed_paper_id = json_data.get("last_processed_paper_id", 0)
+        analyzed_count = json_data.get("analyzed_count", 0)
+        total_rows_to_analyze = json_data.get("total_rows_to_analyze", None)
+
+        if total_rows_to_analyze is None:
+            # If total_rows_to_analyze is not provided, default to the total number of rows in the dataset
+            df = fetch_data_from_database()
+            total_rows_to_analyze = len(df)
 
         # Fetch Title and Abstract from the database
         df = fetch_data_from_database()
         
-
-        for index, row in df.iterrows():
-            Title = row['Title']
-            Abstract = row['Abstract']
-
-            message_text = {
-                "role": "system",
-                "content": f'''
-                    Based on the below exclusion and inclusion criteria, please classify the given Citation as "Included" or "Excluded".
-                    Apply the Exclusion Criteria first. If any statement in the Exclusion Criteria is true, mark the citation as "Excluded".
-                    If the citation passes the Exclusion Criteria, then check the Inclusion Criteria. Mark the Citation as "Included" only if it strictly and exactly passes all Inclusion Criteria statements; otherwise, mark the citation as "Excluded".
-                    Inclusion Criteria:
-                    {inclusion_criteria}
-                    Exclusion Criteria:
-                    {exclusion_criteria}
-
-                    Title: {Title}
-                    Abstract: {Abstract}
-                '''
-            }
-
-            completion = openai.ChatCompletion.create(
-                engine="GPT-4",
-                messages=[message_text],
-                temperature=0.2,
-                max_tokens=800,
-                top_p=0.95,
-                frequency_penalty=0,
-                presence_penalty=0,
-                stop=None
-            )
-
-            response_text = completion.choices[0].message['content']
-
-            
-            if "included" in response_text.lower():
-                classification = "Include"
-            else:
-                classification = "Exclude"
-
-            # Print the classification for debugging
-            print(f"Classification for Title: {Title}, Abstract: {Abstract} - {classification}")
-
-            # Update classification in the database
-            update_classification_in_database(Title, Abstract, classification)
-
-           
+        # Process data in batches
+        last_processed_paper_id, analyzed_count, analyzed_df = process_data_in_batches(df, inclusion_criteria, exclusion_criteria, last_processed_paper_id, analyzed_count, total_rows_to_analyze)
 
         # Continue with the rest of your code...
 
@@ -337,7 +312,83 @@ async def analyse_gpt(request: Request):
 
         # Return JSON response with error
         return JSONResponse(content={"success": False, "error": f"Error processing request: {str(e)}"}, status_code=500)
+    
 
+analyzed_df = pd.DataFrame()
+
+
+# Define a function to fetch and update data in batches
+def process_data_in_batches(df, inclusion_criteria, exclusion_criteria, last_processed_paper_id,analyzed_count, total_rows_to_analyze):
+    processed_rows = []
+    global analyzed_df
+    # Filter rows where ai_decision is not yet made and paper_id is greater than the last processed one
+    pending_rows = df[(df["ai_decision"].isnull()) & (df["paper_id"] > last_processed_paper_id)]
+
+    # Limit the number of rows processed per minute
+    rows_to_process = pending_rows.head(entries_per_minute_limit)
+    print(rows_to_process)
+
+    for index, row in rows_to_process.iterrows():
+        paper_id = row['paper_id']
+        Title = row['Title']
+        Abstract = row['Abstract']
+
+        message_text = {
+            "role": "system",
+            "content": f'''
+                Based on the below exclusion and inclusion criteria, please classify the given Citation as "Included" or "Excluded".
+                Apply the Exclusion Criteria first. If any statement in the Exclusion Criteria is true, mark the citation as "Excluded".
+                If the citation passes the Exclusion Criteria, then check the Inclusion Criteria. Mark the Citation as "Included" only if it strictly and exactly passes all Inclusion Criteria statements; otherwise, mark the citation as "Excluded".
+                Inclusion Criteria:
+                {inclusion_criteria}
+                Exclusion Criteria:
+                {exclusion_criteria}
+
+                Title: {Title}
+                Abstract: {Abstract}
+            '''
+        }
+
+        completion = openai.ChatCompletion.create(
+            engine="GPT-4",
+            messages=[message_text],
+            temperature=0.2,
+            max_tokens=800,
+            top_p=0.95,
+            frequency_penalty=0,
+            presence_penalty=0,
+            stop=None
+        )
+
+        response_text = completion.choices[0].message['content']
+
+        if "included" in response_text.lower():
+            classification = "Include"
+        else:
+            classification = "Exclude"
+
+        print(f"Classification for Title: {Title}, Abstract: {Abstract} - {classification}")
+
+        # Update classification in the database
+        update_classification_in_database(paper_id, Title, Abstract, classification)
+        row['ai_decision'] = classification
+        processed_rows.append(row)
+
+        # Update the last_processed_paper_id
+        last_processed_paper_id = paper_id
+
+        # Update counters
+        analyzed_count += 1
+
+        # Check if the total number of rows to analyze is reached
+        if analyzed_count >= total_rows_to_analyze:
+            break
+       
+    analyzed_df = pd.DataFrame(processed_rows)
+    print(analyzed_df)
+        
+    return last_processed_paper_id, analyzed_count, analyzed_df
+    
 
 
 
@@ -368,13 +419,13 @@ async def analyse_google():
 
 @app.get("/get_metrics")
 async def get_metrics(include: bool = Query(False, description="Include decision metrics")):
+    global analyzed_df
     try:
-        
-        df = fetch_data_from_database()
-        
-        # Extract 'Decision' and 'ai_decision' columns
+        df=analyzed_df
+        print(df)
         actual_values = df['Decision']
         predicted_values = df['ai_decision']
+        
         
 
         # Calculate accuracy
