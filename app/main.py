@@ -113,28 +113,28 @@ async def signin(request: Request, username: str = Form(...),  password: str = F
 
 
 
-@app.post("/upload")
-async def upload_excel(request: Request, file: UploadFile = File(...)):
+# @app.post("/upload")
+# async def upload_excel(request: Request, file: UploadFile = File(...)):
     
-    try:
+#     try:
         
-        # Save the uploaded Excel file to a directory (in this example, 'static')
-        file_path = f"static/{file.filename}"
-        global uploaded_file_path
+#         # Save the uploaded Excel file to a directory (in this example, 'static')
+#         file_path = f"static/{file.filename}"
+#         global uploaded_file_path
         
-        # Save the file
-        with open(file_path, "wb") as file_object:
-            file_object.write(file.file.read())
+#         # Save the file
+#         with open(file_path, "wb") as file_object:
+#             file_object.write(file.file.read())
         
-        uploaded_file_path=file_path
-        data = pd.read_excel(uploaded_file_path)
+#         uploaded_file_path=file_path
+#         data = pd.read_excel(uploaded_file_path)
         
         
         
-        return JSONResponse(content={"success": True, "data": {"file_path": file_path}}, status_code=200)
+#         return JSONResponse(content={"success": True, "data": {"file_path": file_path}}, status_code=200)
 
-    except Exception as e:
-        return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
+#     except Exception as e:
+#         return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
     
 
 ##################################################################################################################################################################
@@ -158,55 +158,129 @@ async def show_result(request:Request):
 
 project_name= "pankaj01"
 
+def convert_excel_to_csv(excel_file_path):
+    # Assuming the converted CSV file will be in the same directory as the Excel file
+    csv_file_path = os.path.splitext(excel_file_path)[0] + ".csv"
+    
+    # Read the Excel file and convert it to CSV
+    df = pd.read_excel(excel_file_path)
+    df.to_csv(csv_file_path, index=False)
+    
+    return csv_file_path
 
-
-@app.get("/dataupload")
-def dbdataimport():
+def push_csv_to_database(csv_file_path):
     try:
-        csv_file_path = "app/data/datagpt.csv"
-
-        # Read the CSV file into a DataFrame with explicit encoding
+        # Read the CSV file into a DataFrame
         df = pd.read_csv(csv_file_path, encoding='ISO-8859-1')
-
         df = df.dropna()
-        reset_query=f'''ALTER SEQUENCE {project_name}.paperid_sequence RESTART WITH 1;'''
+
+        # Reset the sequence
+        reset_query = f'ALTER SEQUENCE {project_name}.paperid_sequence RESTART WITH 1;'
         db.cursor.execute(reset_query)
         db.dbconn.commit()
 
+        # Truncate the import table
+        truncate_import_query = f'TRUNCATE TABLE {project_name}."import";'
+        db.cursor.execute(truncate_import_query)
+        db.dbconn.commit()
+
+        # Truncate the analyzed table (assuming there is an analyzed table)
+        truncate_analyzed_query = f'TRUNCATE TABLE {project_name}.analyzed;'
+        db.cursor.execute(truncate_analyzed_query)
+        db.dbconn.commit()
 
         for index, row in df.iterrows():
             insert_query = f'''
-                
-                INSERT INTO 
-                    {project_name}."aidecision" ("paper_id","Title", "Abstract", "PCE ID", "Decision", "Publication Year", "Publication Type", "Reason")
-                    VALUES (nextval('{project_name}.paperid_sequence'),%s, %s, %s, %s, %s, %s, %s)
-                
-                '''
+                INSERT INTO {project_name}."import" ("paper_id","Title", "Abstract", "PCE ID", "Decision", "Publication Year", "Publication Type", "Reason")
+                VALUES (nextval('{project_name}.paperid_sequence'),%s, %s, %s, %s, %s, %s, %s)
+            '''
             db.cursor.execute(insert_query, (
                 row['Title'], row['Abstract'], row['PCE ID'], row['Decision'], row['Publication Year'],
                 row['Publication Type'], row['Reason']))
             db.dbconn.commit()
+
         db_conn = get_db()
-        # Create a cursor
         db_cursor = db_conn.cursor()
-        
-        
 
         update_query = f'''
-            UPDATE {project_name}.aidecision
+            UPDATE {project_name}.import
             SET project_id = '{project_name}';
-            
         '''
         db_cursor.execute(update_query)
         db_conn.commit()
+
         affected_rows = db_cursor.rowcount
-        print(f"Affected Rows: {affected_rows}")
-        return {"message": "Import successful and project assigned"}
-    
+        return {"message": f"Data from {csv_file_path} has been uploaded to the database. {affected_rows} rows affected."}
 
     except Exception as e:
-        print(e)
         return {"error": str(e)}
+
+@app.post("/upload")
+async def upload_excel(request: Request, file: UploadFile = File(...)):
+    try:
+        # Save the uploaded Excel file to a directory
+        excel_file_path = f"static/{file.filename}"
+        with open(excel_file_path, "wb") as file_object:
+            file_object.write(file.file.read())
+
+        # Convert Excel to CSV
+        csv_file_path = convert_excel_to_csv(excel_file_path)
+
+        # Push CSV data to the database
+        result = push_csv_to_database(csv_file_path)
+
+        return JSONResponse(content=result, status_code=200)
+
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+# @app.get("/dataupload")
+# def dbdataimport():
+#     try:
+#         csv_file_path = "app/data/datagpt.csv"
+
+#         # Read the CSV file into a DataFrame with explicit encoding
+#         df = pd.read_csv(csv_file_path, encoding='ISO-8859-1')
+
+#         df = df.dropna()
+#         reset_query=f'''ALTER SEQUENCE {project_name}.paperid_sequence RESTART WITH 1;'''
+#         db.cursor.execute(reset_query)
+#         db.dbconn.commit()
+
+
+#         for index, row in df.iterrows():
+#             insert_query = f'''
+                
+#                 INSERT INTO 
+#                     {project_name}."import" ("paper_id","Title", "Abstract", "PCE ID", "Decision", "Publication Year", "Publication Type", "Reason")
+#                     VALUES (nextval('{project_name}.paperid_sequence'),%s, %s, %s, %s, %s, %s, %s)
+                
+#                 '''
+#             db.cursor.execute(insert_query, (
+#                 row['Title'], row['Abstract'], row['PCE ID'], row['Decision'], row['Publication Year'],
+#                 row['Publication Type'], row['Reason']))
+#             db.dbconn.commit()
+#         db_conn = get_db()
+#         # Create a cursor
+#         db_cursor = db_conn.cursor()
+        
+        
+
+#         update_query = f'''
+#             UPDATE {project_name}.import
+#             SET project_id = '{project_name}';
+            
+#         '''
+#         db_cursor.execute(update_query)
+#         db_conn.commit()
+#         affected_rows = db_cursor.rowcount
+#         print(f"Affected Rows: {affected_rows}")
+#         return {"message": "Import successful and project assigned"}
+    
+
+#     except Exception as e:
+#         print(e)
+#         return {"error": str(e)}
 
 @app.get("/dataflush")
 def dbdatadelete():
@@ -214,7 +288,7 @@ def dbdatadelete():
     try:
 
         truncate_query = f"""
-            TRUNCATE TABLE {project_name}.aidecision RESTART IDENTITY;
+            TRUNCATE TABLE {project_name}.import RESTART IDENTITY;
         """
         db.cursor.execute(truncate_query)
         db.dbconn.commit()
@@ -240,8 +314,8 @@ def fetch_data_from_database():
     db_cursor = db_conn.cursor()
 
     fetch_query = f'''
-        SELECT "paper_id", "Title", "Abstract", "Publication Year", "Publication Type", "Reason", "Decision", "ai_decision"
-        FROM {project_name}.aidecision; -- Modify the schema if needed
+        SELECT *
+        FROM {project_name}.import; 
     '''
     db_cursor.execute(fetch_query)
     rows = db_cursor.fetchall()
@@ -251,33 +325,38 @@ def fetch_data_from_database():
     db_conn.close()
 
     # Convert the result to a DataFrame
-    columns = ["paper_id", "Title", "Abstract", "Publication Year", "Publication Type", "Reason", "Decision", "ai_decision"]
+    columns = ["project_id","paper_id", "Title", "Abstract","PCE ID", "Decision", "Publication Year", "Publication Type", "Reason"]
     df = pd.DataFrame(rows, columns=columns)
+    # print(df)
 
     return df
 
 
 
 # Assume you have a function to update the classification result in the database
-def update_classification_in_database(paper_id, title, abstract, classification):
+def insert_data_into_analyzed_table(df):
     db_conn = get_db()
     db_cursor = db_conn.cursor()
+    print(df)
 
-    title = title.replace("'", "''")  # Properly escape single quotes
-    abstract = abstract.replace("'", "''")  # Properly escape single quotes
+    for index, row in df.iterrows():
+        project_name=row['project_id']
+        paper_id = row['paper_id']
+        title = row['Title'].replace("'", "''")  # Properly escape single quotes
+        abstract = row['Abstract'].replace("'", "''")  # Properly escape single quotes
+        ai_decision = row['ai_decision'].replace("'", "''")
 
-    update_query = f'''
-        UPDATE {project_name}.aidecision
-        SET ai_decision = '{classification}'
-        WHERE "paper_id" = {paper_id} AND "Title" = '{title}' AND "Abstract" = '{abstract}'; -- Modify the schema if needed
-    '''
-    db_cursor.execute(update_query)
+        insert_query = f'''
+        INSERT INTO {project_name}.analyzed ("project_id", "paper_id", "Title", "Abstract", "PCE ID", "Decision", "Publication Year", "Publication Type", "Reason", "ai_decision")
+        VALUES ('{project_name}', '{paper_id}', '{title}', '{abstract}', '{row["PCE ID"].replace("'", "''")}', '{row["Decision"].replace("'", "''")}', '{row["Publication Year"]}', '{row["Publication Type"]}', '{row["Reason"]}', '{ai_decision}');
+            '''
+        db_cursor.execute(insert_query)
+
 
     db_conn.commit()
-
+    
     db_cursor.close()
     db_conn.close()
-
 
 
 
@@ -317,16 +396,44 @@ async def analyse_gpt(request: Request):
 analyzed_df = pd.DataFrame()
 
 
+
+def get_last_processed_paper_id_from_analyzed_table():
+    db_conn = get_db()
+    db_cursor = db_conn.cursor()
+
+    # Fetch the last row from the analyzed table
+    query = f'SELECT "paper_id" FROM {project_name}.analyzed ORDER BY "paper_id" DESC LIMIT 1;'
+    db_cursor.execute(query)
+    result = db_cursor.fetchone()
+
+    db_cursor.close()
+    db_conn.close()
+
+    if result:
+        return result[0]
+    else:
+        return None
+
+
+
 # Define a function to fetch and update data in batches
-def process_data_in_batches(df, inclusion_criteria, exclusion_criteria, last_processed_paper_id,analyzed_count, total_rows_to_analyze):
+def process_data_in_batches(df, inclusion_criteria, exclusion_criteria, last_processed_paper_id, analyzed_count, total_rows_to_analyze):
     processed_rows = []
     global analyzed_df
-    # Filter rows where ai_decision is not yet made and paper_id is greater than the last processed one
-    pending_rows = df[(df["ai_decision"].isnull()) & (df["paper_id"] > last_processed_paper_id)]
+
+    # Check the last_processed_paper_id from the analyzed table
+    last_processed_paper_id_analyzed = get_last_processed_paper_id_from_analyzed_table()
+
+    # If analyzed table is not empty, use the last_processed_paper_id from analyzed table
+    if not pd.isnull(last_processed_paper_id_analyzed):
+        last_processed_paper_id = int(last_processed_paper_id_analyzed)
+
+    # Filter rows where paper_id is greater than the last processed one
+    pending_rows = df[df["paper_id"] > last_processed_paper_id]
 
     # Limit the number of rows processed per minute
     rows_to_process = pending_rows.head(entries_per_minute_limit)
-    print(rows_to_process)
+    # print(rows_to_process)
 
     for index, row in rows_to_process.iterrows():
         paper_id = row['paper_id']
@@ -370,7 +477,7 @@ def process_data_in_batches(df, inclusion_criteria, exclusion_criteria, last_pro
         print(f"Classification for Title: {Title}, Abstract: {Abstract} - {classification}")
 
         # Update classification in the database
-        update_classification_in_database(paper_id, Title, Abstract, classification)
+        # update_classification_in_database(paper_id, Title, Abstract, classification)
         row['ai_decision'] = classification
         processed_rows.append(row)
 
@@ -385,7 +492,8 @@ def process_data_in_batches(df, inclusion_criteria, exclusion_criteria, last_pro
             break
        
     analyzed_df = pd.DataFrame(processed_rows)
-    print(analyzed_df)
+    insert_data_into_analyzed_table(analyzed_df)
+    
         
     return last_processed_paper_id, analyzed_count, analyzed_df
     
@@ -417,12 +525,31 @@ async def analyse_google():
 
 
 
+
+def fetch_analyzed_data():
+    db_conn = get_db()
+    db_cursor = db_conn.cursor()
+    fetch_query = f'''
+        SELECT * FROM {project_name}.analyzed;
+    '''
+    db_cursor.execute(fetch_query)
+    rows = db_cursor.fetchall()   
+    # Close the cursor and connection
+    db_cursor.close()
+    db_conn.close()
+    # Convert the result to a DataFrame
+    columns = ["project_id","paper_id", "Title", "Abstract","PCE ID", "Decision", "Publication Year", "Publication Type", "Reason","ai_decision","ai_reason"]
+    df = pd.DataFrame(rows, columns=columns) 
+    return df
+
+
+
+
 @app.get("/get_metrics")
-async def get_metrics(include: bool = Query(False, description="Include decision metrics")):
-    global analyzed_df
+async def get_metrics(include: bool = Query(False, description="Include decision metrics")):  
     try:
-        df=analyzed_df
-        print(df)
+        df=fetch_analyzed_data()
+        
         actual_values = df['Decision']
         predicted_values = df['ai_decision']
         
@@ -492,7 +619,7 @@ def get_filtered_dataframe(include: bool = Query(True), exclude: bool = Query(Tr
     
 
 
-    df = fetch_data_from_database()
+    df = fetch_analyzed_data()
 
 
     df = df.where(pd.notna(df), None)
