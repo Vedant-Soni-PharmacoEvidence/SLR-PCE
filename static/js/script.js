@@ -200,8 +200,40 @@ async function uploadFile() {
         }
     }
 }
+function cleanDatabase() {
+    fetch('/cleandb')
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+        })
+        .catch(error => {
+            console.error('Error cleaning database:', error);
+            alert('Error cleaning database. Please check the console for details.');
+        });
+}
 
+// Function to fetch and update analysis info
+function updateAnalysisInfo() {
+    fetch('/analysis_info')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('analyzedCount').innerText = data.analyzed_count;
+            document.getElementById('remainingCount').innerText = data.remaining_count;
+        })
+        .catch(error => {
+            console.error('Error fetching analysis info:', error);
+        });
+}
 
+// Function to handle "Analyze Next Batch" button click
+function secondpass() {
+    // Add logic for analyzing the next batch if needed
+    // This function can be expanded based on your requirements
+    console.log('Analyzing next batch...');
+}
+
+// Call the function on page load
+document.addEventListener('DOMContentLoaded', updateAnalysisInfo);
 
 
 
@@ -230,7 +262,7 @@ document.addEventListener('DOMContentLoaded', function () {
     updateCharts();
 
     // Get the selected decision values based on checkbox states
-    
+
     // Determine the decision value based on checkbox states
     function updateCharts() {
         // Get the state of checkboxes
@@ -238,86 +270,86 @@ document.addEventListener('DOMContentLoaded', function () {
         const excludeChecked = document.getElementById('excludeCheckbox').checked;
 
 
-    // Fetch data from the server based on the selected decision value
-    fetch(`/filter?include=${includeChecked}&exclude=${excludeChecked}`)
-        .then(response => response.json())
-        .then(data => {
-            console.log(data);
+        // Fetch data from the server based on the selected decision value
+        fetch(`/filter?include=${includeChecked}&exclude=${excludeChecked}`)
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
 
-            // Access the filtered data directly (assuming it's an array)
-            let filteredData = data;
-            console.log(filteredData);
+                // Access the filtered data directly (assuming it's an array)
+                let filteredData = data;
+                console.log(filteredData);
 
-            // Chart 1: Bar chart between Include and Exclude and their total count
-            let includeCount = filteredData.filter(item => item['ai_decision'] === 'Include').length;
-            let excludeCount = filteredData.filter(item => item['ai_decision'] === 'Exclude').length;
+                // Chart 1: Bar chart between Include and Exclude and their total count
+                let includeCount = filteredData.filter(item => item['ai_decision'] === 'Include').length;
+                let excludeCount = filteredData.filter(item => item['ai_decision'] === 'Exclude').length;
 
-            let chart1Data = [{
-                x: ['Include', 'Exclude'],
-                y: [includeCount, excludeCount],
-                type: 'bar',
-                text: [`${includeCount} Papers`, `${excludeCount} Papers`],
-                textposition: 'auto'
-            }];
+                let chart1Data = [{
+                    x: ['Include', 'Exclude'],
+                    y: [includeCount, excludeCount],
+                    type: 'bar',
+                    text: [`${includeCount} Papers`, `${excludeCount} Papers`],
+                    textposition: 'auto'
+                }];
 
-            // Layout settings
-            let layout1 = {
-                title: "AI Decision Summary",
-                xaxis: {
-                    title: 'Decision'
-                },
-                yaxis: {
-                    title: 'Number of Evidences'
-                }
-            };
+                // Layout settings
+                let layout1 = {
+                    title: "AI Decision Summary",
+                    xaxis: {
+                        title: 'Decision'
+                    },
+                    yaxis: {
+                        title: 'Number of Evidences'
+                    }
+                };
 
-            // Chart 2: Bar chart for Publication Year
-            let publicationYears = filteredData.map(item => item['Publication Year']);
-            let yearCounts = countOccurrences(publicationYears);
+                // Chart 2: Bar chart for Publication Year
+                let publicationYears = filteredData.map(item => item['Publication Year']);
+                let yearCounts = countOccurrences(publicationYears);
 
-            let chart2Data = [{
-                x: Object.keys(yearCounts),
-                y: Object.values(yearCounts),
-                type: 'bar',
-                text: Object.values(yearCounts).map(count => `${count} Papers`),
-                textposition: 'auto'
-            }];
-            let layout2 = {
-                title: "Distribution of Evidences by years",
-                xaxis: {
-                    title: 'Year'
-                },
-                yaxis: {
-                    title: 'Number of Publications'
-                }
-            };
+                let chart2Data = [{
+                    x: Object.keys(yearCounts),
+                    y: Object.values(yearCounts),
+                    type: 'bar',
+                    text: Object.values(yearCounts).map(count => `${count} Papers`),
+                    textposition: 'auto'
+                }];
+                let layout2 = {
+                    title: "Distribution of Evidences by years",
+                    xaxis: {
+                        title: 'Year'
+                    },
+                    yaxis: {
+                        title: 'Number of Publications'
+                    }
+                };
 
-            // Chart 3: Pie chart for Publication Type
-            let publicationTypeCounts = countOccurrences(filteredData.map(item => item['Publication Type']));
-            let chart3Data = [{
-                labels: Object.keys(publicationTypeCounts),
-                values: Object.values(publicationTypeCounts),
-                type: 'pie'
-            }];
-            let layout3 = {
-                title: "Types of Publications",
-                
-            };
+                // Chart 3: Pie chart for Publication Type
+                let publicationTypeCounts = countOccurrences(filteredData.map(item => item['Publication Type']));
+                let chart3Data = [{
+                    labels: Object.keys(publicationTypeCounts),
+                    values: Object.values(publicationTypeCounts),
+                    type: 'pie'
+                }];
+                let layout3 = {
+                    title: "Types of Publications",
 
-            // Create Plotly charts
-            Plotly.newPlot('chart1', chart1Data, layout1);
-            Plotly.newPlot('chart2', chart2Data, layout2);
-            Plotly.newPlot('chart3', chart3Data, layout3);
+                };
 
-            // Additional code if needed...
-        })
-        .catch(error => console.error('Error fetching data:', error));
-    function countOccurrences(arr) {
-        return arr.reduce((acc, val) => {
-            acc[val] = (acc[val] || 0) + 1;
-            return acc;
-        }, {});
-    }
+                // Create Plotly charts
+                Plotly.newPlot('chart1', chart1Data, layout1);
+                Plotly.newPlot('chart2', chart2Data, layout2);
+                Plotly.newPlot('chart3', chart3Data, layout3);
+
+                // Additional code if needed...
+            })
+            .catch(error => console.error('Error fetching data:', error));
+        function countOccurrences(arr) {
+            return arr.reduce((acc, val) => {
+                acc[val] = (acc[val] || 0) + 1;
+                return acc;
+            }, {});
+        }
     }
 
 
@@ -433,3 +465,22 @@ document.getElementById('metricTableHeading').addEventListener('click', toggleMe
 
 // Event listener to toggle visibility when heading is clicked
 document.getElementById('metricTableHeading').addEventListener('click', toggleMetricTable);
+
+
+
+
+document.addEventListener('DOMContentLoaded', function () {
+
+    var getstarted = document.getElementById('secondpass');
+
+    
+    getstarted.addEventListener('click', function () {
+        ;
+        window.location.href = '/secondpasshtml';
+    });
+
+});
+
+
+
+

@@ -43,14 +43,16 @@
       <h2>Upload Excel File and Inclusion & Exclusion Criteria</h2>
       <div class="upload-content">
         <label for="fileInput">
-          <div id="dropArea" type="file" class="drop-area" ondragover="handleDragOver(event)" ondrop="handleDrop(event)">
-            <img src="https://cdn.iconscout.com/icon/premium/png-512-thumb/file-upload-8-1110111.png?f=webp&w=256" alt="upload-icon" />
-            <p style="font-size: 12px;color: #4abaff;">Drag & Drop files here or click to select</p>
-            <input type="file" id="fileInput" class="file-input" onchange="handleFileSelection()" />
-          </div>
+            <div id="dropArea" type="file" class="drop-area" ondragover="handleDragOver(event)" ondrop="handleDrop(event)">
+                <img src="https://cdn.iconscout.com/icon/premium/png-512-thumb/file-upload-8-1110111.png?f=webp&w=256" alt="upload-icon" />
+                <p style="font-size: 12px;color: #4cf3ff;">Clear the data first, Then upload fresh data</p>
+                <input type="file" id="fileInput" class="file-input" onchange="handleFileSelection()" />
+            </div>
         </label>
-        
-      </div>
+        <button class="btn" onclick="cleanDatabase()" style="width: auto;background-color: rgb(255, 72, 72);">
+          <img src="https://cdn-icons-png.flaticon.com/512/3405/3405244.png" alt="trash-can-icon" style="width: 24px; height: 24px;" />
+      </button>
+    </div>
     </div>
     
   

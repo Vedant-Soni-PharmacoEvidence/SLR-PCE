@@ -22,8 +22,23 @@
         </ul>
       </nav>
     </header>
+    <div class="analysis_info">
+      <div class="numbers-container">
+        <p>
+          Number of Analyzed Decisions:
+          <span id="analyzedCount">Loading...</span>
+        </p>
+        <p>Remaining Data Count: <span id="remainingCount">Loading...</span></p>
+      </div>
+      <div class="button-container">
+        <button class="btn" id="secondpass" >
+          Continue to Second Pass
+        </button>
+      </div>
+    </div>
     <div class="dashboard">
       <!-- <p>selected File: </p> -->
+
       <div class="column">
         <div class="decision-table">
           <h2>Decision Summary</h2>
@@ -149,15 +164,15 @@
       <div class="column">
         <h2>Visual Stats</h2>
         <label>
-            <input type="checkbox" id="includeCheckbox" checked> Include
+          <input type="checkbox" id="includeCheckbox" checked /> Include
         </label>
         <label>
-            <input type="checkbox" id="excludeCheckbox" checked> Exclude
+          <input type="checkbox" id="excludeCheckbox" checked /> Exclude
         </label>
         <div id="chart1"></div>
         <div id="chart2"></div>
         <div id="chart3"></div>
-    </div>
+      </div>
     </div>
 
     <script defer src="/static/js/script.js"></script>
