@@ -460,27 +460,81 @@ function toggleMetricTable() {
     }
 }
 
-// Event listener to toggle visibility when heading is clicked
-document.getElementById('metricTableHeading').addEventListener('click', toggleMetricTable);
-
-// Event listener to toggle visibility when heading is clicked
-document.getElementById('metricTableHeading').addEventListener('click', toggleMetricTable);
-
-
-
 
 document.addEventListener('DOMContentLoaded', function () {
+    // Get the "Upload Model" button
+    var secondpass = document.getElementById('secondpass');
 
-    var getstarted = document.getElementById('secondpass');
-
-    
-    getstarted.addEventListener('click', function () {
-        ;
-        window.location.href = '/secondpasshtml';
+    // Add click event listener
+    secondpass.addEventListener('click', function () {
+        // Redirect to the "/upload" route
+        // window.location.href = '/signin';
+        window.location.href = '/secondpass';
     });
-
 });
 
+// // Event listener to toggle visibility when heading is clicked
+// document.getElementById('metricTableHeading').addEventListener('click', toggleMetricTable);
+
+// // Event listener to toggle visibility when heading is clicked
+// document.getElementById('metricTableHeading').addEventListener('click', toggleMetricTable);
+
+
+// document.getElementById('secondpass').addEventListener('click', function() {
+//     // Make an AJAX request when the button is clicked
+//     var xhr = new XMLHttpRequest();
+    
+//     // Define the request type, URL, and set it to asynchronous
+//     xhr.open('GET', '/secondpass', true);
+
+//     // Set up a callback function to handle the response
+//     xhr.onload = function() {
+//         if (xhr.status >= 200 && xhr.status < 300) {
+//             // Successful response, redirect the user to secondpass.html
+//             document.open();
+//             document.write(xhr.responseText);
+//             document.close();
+//         } else {
+//             // Error handling
+//             console.error('Request failed with status ' + xhr.status);
+//         }
+//     };
+
+//     // Send the request
+//     xhr.send();
+// });
 
 
 
+
+
+
+
+function uploadPDF(title, index) {
+    const fileInput = document.getElementById(`pdfUpload${index}`);
+    const file = fileInput.files[0];
+  
+    if (file) {
+      const formData = new FormData();
+      formData.append('pdfFile', file);
+  
+      // Use fetch to send the PDF file to the FastAPI backend
+      fetch('/upload-pdf', {
+        method: 'POST',
+        body: formData,
+      })
+        .then(response => response.json())
+        .then(data => {
+          console.log('Upload successful:', data);
+  
+          // Now you can use data.result for further processing
+          const gptResult = data.result;
+          // Implement your logic to use the GPT result
+        })
+        .catch(error => {
+          console.error('Error uploading PDF:', error);
+        });
+    } else {
+      console.error('No file selected for upload.');
+    }
+  }

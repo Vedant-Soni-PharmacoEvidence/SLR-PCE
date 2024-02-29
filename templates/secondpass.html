@@ -3,74 +3,94 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DataFrame Display</title>
+    <title>Your Dashboard</title>
+    <link rel="stylesheet" type="text/css" href="/static/css/landing.css" />
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="/static/js/script.js"></script>
+    <style>
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        height: 70vh;
+      }
+      th{
+        text-align: center;
+        position: sticky;
+        z-index: 1;
+      }
+      td {
+        border: 1px solid #dddddd;
+        text-align: left;
+        padding: 8px;
+      }
 
-    <!-- Include DataTables CSS -->
-    <link
-      rel="stylesheet"
-      type="text/css"
-      href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css"
-    />
+      tr:nth-child(even) {
+        background-color: #ffffff;
+      }
+
+      /* Add the following style to create a thin line between rows */
+      tr {
+        border-bottom: 1px solid #dddddd;
+      }
+      tbody {
+        overflow-y: scroll;
+        overflow-x: hidden;
+        height: 500px; /* Set the height you desire */
+        display: block;
+      }
+      thead,
+      tbody tr {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+      }
+    </style>
   </head>
+
   <body>
-    <table id="data-table" class="display">
+    <header class="expanded">
+      <nav class="header__navegation">
+        <img
+          src="https://static.wixstatic.com/media/85b92c_f21a10fac4d9497397a19f8aade0ec99~mv2.png/v1/fill/w_346,h_95,al_c,q_85,usm_0.66_1.00_0.01,enc_auto/PCE_White%20registered1.png"
+          alt="logo"
+          srcset=""
+        />
+        <ul id="navbarUl">
+          <li><a href="/home">Home</a></li>
+          <li><a href="/model">Upload Model</a></li>
+          <li><a href="/">Sign Out</a></li>
+        </ul>
+      </nav>
+    </header>
+    
+    <table style="margin-top: 15vh;height: 100px;">
       <thead>
         <tr>
-          <th>project_id</th>
-          <th>paper_id</th>
-          <th>Title</th>
-          <th>Abstract</th>
-          <th>PCE ID</th>
-          <th>Decision</th>
-          <th>Publication Year</th>
-          <th>Publication Type</th>
-          <th>Reason</th>
-          <th>ai_decision</th>
-          <th>ai_reason</th>
+          <th style="font-size: 14px; width: 15vw;">Title</th>
+          <th style="font-size: 14px; width: 40vw;">Abstract</th>
+          <th style="font-size: 14px;width: 8vw;">Decision</th>
+          <th style="font-size: 14px;width: 8vw;">Reason</th>
+          <th style="font-size: 14px;width: 10vw;">AI Decision</th>
+          <th style="font-size: 14px;">Upload PDF</th>
+          <!-- Add more column headers as needed -->
         </tr>
       </thead>
-      <tbody></tbody>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td style="font-size: 12px; width: 15vw;">{{ row[2] }}</td>
+          <td style="font-size: 12px; width: 40vw;">{{ row[3] }}</td>
+          <td style="font-size: 12px;width: 8vw;">{{ row[5] }}</td>
+          <td style="font-size: 12px;width: 8vw;">{{ row[8] }}</td>
+          <td style="font-size: 12px;width: 10vw;">{{ row[9] }}</td>
+          <td style="font-size: 12px; text-align: center; ">
+            <input type="file" id="pdfUpload{{ loop.index }}" accept=".pdf" />
+            <button  style="font-size: 14px;" class="btn" onclick="uploadPDF('{{ row[2] }}', '{{ loop.index }}')">Upload</button>
+          </td>
+          <!-- Add more row data as needed -->
+        </tr>
+        {% endfor %}
+      </tbody>
     </table>
-
-    <!-- Include DataTables JS -->
-    <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
-
-    <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        fetch("/secondpass")
-          .then((response) => response.json())
-          .then((data) => {
-            console.log(data); // Log the parsed JSON data
-
-            // Parse the JSON string to create a JavaScript object
-            const parsedData = JSON.parse(data.df);
-            console.log(parsedData);
-
-            // Check if parsedData is an array and not empty
-            if (Array.isArray(parsedData) && parsedData.length > 0) {
-              // DataTables initialization
-              const dataTable = $("#data-table").DataTable({
-                data: parsedData,
-                columns: [
-                  { data: "project_id" },
-                  { data: "paper_id" },
-                  { data: "Title" },
-                  { data: "Abstract" },
-                  { data: "PCE ID" },
-                  { data: "Decision" },
-                  { data: "Publication Year" },
-                  { data: "Publication Type" },
-                  { data: "Reason" },
-                  { data: "ai_decision" },
-                  { data: "ai_reason" },
-                ],
-              });
-            } else {
-              console.error("Parsed data is either not an array or is empty.");
-            }
-          })
-          .catch((error) => console.error("Error fetching data:", error));
-      });
-    </script>
   </body>
 </html>

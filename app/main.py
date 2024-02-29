@@ -26,6 +26,7 @@ import psycopg2
 from datetime import datetime
 import asyncio
 from openpyxl import load_workbook
+import fitz  # PyMuPDF
 
 
 app = FastAPI()
@@ -698,28 +699,40 @@ async def second_pass(request: Request):
         # Close the cursor and connection
         db_cursor.close()
         db_conn.close()
+        
 
-        # Convert the result to a DataFrame
-        columns = [
-            "project_id",
-            "paper_id",
-            "Title",
-            "Abstract",
-            "PCE ID",
-            "Decision",
-            "Publication Year",
-            "Publication Type",
-            "Reason",
-            "ai_decision",
-            "ai_reason",
-        ]
-        df = pd.DataFrame(rows, columns=columns)
 
-        # Convert DataFrame to JSON with the 'df' key
-        df_json = df.to_json(orient="records")
-        response = {"df": df_json}
-
-        return response
+        return templates.TemplateResponse("secondpass.html", {"request": request, "rows": rows})
 
     except Exception as e:
         return {"error": str(e)}
+    
+
+
+@app.post("/upload-pdf")
+async def upload_pdf(file: UploadFile = File(...)):
+    # Process the uploaded PDF file (e.g., extract text, other info)
+    pdf_text = extract_text_from_pdf(file.file)
+
+    # Example: Send the data to GPT for classification
+    gpt_result = classify_with_gpt(pdf_text)
+
+    # Example: Return some response
+    return {"status": "success", "result": gpt_result}
+
+def extract_text_from_pdf(pdf_file):
+    text = ""
+    try:
+        with fitz.open(stream=pdf_file.read(), filetype="pdf") as pdf_document:
+            for page_number in range(pdf_document.page_count):
+                page = pdf_document[page_number]
+                text += page.get_text()
+
+    except Exception as e:
+        print(f"Error extracting text from PDF: {e}")
+    
+    return text
+
+def classify_with_gpt(text):
+    # Implement GPT classification logic here
+    pass
