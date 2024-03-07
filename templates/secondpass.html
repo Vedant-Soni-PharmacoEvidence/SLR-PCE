@@ -35,7 +35,7 @@
       tbody {
         overflow-y: scroll;
         overflow-x: hidden;
-        height: 500px; /* Set the height you desire */
+        height: 75vh; /* Set the height you desire */
         display: block;
       }
       thead,
@@ -63,14 +63,15 @@
       </nav>
     </header>
     
-    <table style="margin-top: 15vh;height: 100px;">
+    <table style="margin-top: 15vh; height: 100px;">
       <thead>
         <tr>
+          <th style="font-size: 14px; width: 4vw;">S. No.</th>
           <th style="font-size: 14px; width: 15vw;">Title</th>
           <th style="font-size: 14px; width: 40vw;">Abstract</th>
-          <th style="font-size: 14px;width: 8vw;">Decision</th>
-          <th style="font-size: 14px;width: 8vw;">Reason</th>
-          <th style="font-size: 14px;width: 10vw;">AI Decision</th>
+          <th style="font-size: 14px; width: 8vw;">Decision</th>
+          <th style="font-size: 14px; width: 8vw;">Reason</th>
+          <th style="font-size: 14px; width: 10vw;">AI Decision</th>
           <th style="font-size: 14px;">Upload PDF</th>
           <!-- Add more column headers as needed -->
         </tr>
@@ -78,19 +79,21 @@
       <tbody>
         {% for row in rows %}
         <tr>
+          <td style="font-size: 12px; width: 4vw;">{{ loop.index }}</td>
           <td style="font-size: 12px; width: 15vw;">{{ row[2] }}</td>
           <td style="font-size: 12px; width: 40vw;">{{ row[3] }}</td>
-          <td style="font-size: 12px;width: 8vw;">{{ row[5] }}</td>
-          <td style="font-size: 12px;width: 8vw;">{{ row[8] }}</td>
-          <td style="font-size: 12px;width: 10vw;">{{ row[9] }}</td>
-          <td style="font-size: 12px; text-align: center; ">
+          <td style="font-size: 12px; width: 8vw;">{{ row[5] }}</td>
+          <td style="font-size: 12px; width: 8vw;">{{ row[8] }}</td>
+          <td style="font-size: 12px; width: 10vw;">{{ row[9] }}</td>
+          <td style="font-size: 12px; text-align: center;">
             <input type="file" id="pdfUpload{{ loop.index }}" accept=".pdf" />
-            <button  style="font-size: 14px;" class="btn" onclick="uploadPDF('{{ row[2] }}', '{{ loop.index }}')">Upload</button>
+            <button style="font-size: 14px;" class="btn" onclick="uploadPDF('{{ row[2] }}', '{{ loop.index }}')">Upload</button>
           </td>
           <!-- Add more row data as needed -->
         </tr>
         {% endfor %}
       </tbody>
     </table>
+    
   </body>
 </html>

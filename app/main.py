@@ -98,9 +98,6 @@ async def read_dashboard(request: Request):
         "dashboard.html", {"request": request, "is_dashboard": True}
     )
 
-@app.get("/secondpasshtml", response_class=HTMLResponse)
-def home(request: Request):
-    return templates.TemplateResponse("secondpass.html", {"request": request})
 ##################################################################################################################################################################
 
 
